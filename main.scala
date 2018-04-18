@@ -5,13 +5,13 @@ object Main {
   def main(args: Array[String]) = {
     val parser = new SqlParser()
     // val sql = args(0)
-    val sql = "SELECT a FROM b WHERE a < 2"
+    val sql = "SELECT some_attribute FROM some_relation WHERE 1 = c"
     val query = parser.createStatement(sql)
     query match {
-      case q if q.isInstanceOf[Query]  => println(RelAlg(q.asInstanceOf[Query]))
-      case q if q.isInstanceOf[Delete] => println("This is a delete!")
-      case q if q.isInstanceOf[Insert] => println("This is an insert!")
-      case _ => println("Operator is not supported")
+      case q: Query  => println(RelAlg(q)); println(Physical(RelAlg(q)))
+      case q: Delete => println("This is a delete!")
+      case q: Insert => println("This is an insert!")
+      case _ => println("Operation is not supported")
     }
   }
 }

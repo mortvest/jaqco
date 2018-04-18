@@ -1,8 +1,5 @@
 sealed trait Expr
 case class Attribute(attName: String) extends Expr
-case class LongConst(value: Long) extends Expr
-case class IntConst(value: Int) extends Expr
-case class StringConst(value: String) extends Expr
 case class Less(left: Expr, right: Expr) extends Expr
 case class Leq(left: Expr, right: Expr) extends Expr
 case class Greater(left: Expr, right: Expr) extends Expr
@@ -13,6 +10,11 @@ case class Minus(left: Expr, right: Expr) extends Expr
 case class And(left: Expr, right: Expr) extends Expr
 case class Or(left: Expr, right: Expr) extends Expr
 case class Not(value: Expr) extends Expr
+
+// TODO: Add types floats, dates etc
+sealed trait Const extends Expr
+case class LongConst(value: Long) extends Const
+case class StringConst(value: String) extends Const
 
 sealed trait RelAlg
 case class Relation(relName: String) extends RelAlg
