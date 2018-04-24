@@ -5,11 +5,11 @@ import com.facebook.presto.sql.tree._
 object Main {
   // TODO: uppercase/lowercase inside the metadata
   val meta = Map[String, TableMetaData]("account_relation" ->
-    TableMetaData("account_relation", "account_id", Map("account_id" -> "int")))
+    TableMetaData("account_relation", "account_id", Map("account_id" -> "int", "balance" -> "float")))
   def main(args: Array[String]) = {
     val parser = new SqlParser()
     // val sql = args(0)
-    val sql = "SELECT account_id FROM ACCOUNT_RELATION WHERE account_id = account_name"
+    val sql = "SELECT account_id, balance FROM ACCOUNT_RELATION WHERE account_id = account_name"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>
