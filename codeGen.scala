@@ -1,92 +1,107 @@
-// case class TableMetaData(relName: String, indexName: String, tableNames: List[String])
-// case class TableScan(meta: TableMetaData) extends Physical
-// case class RangeScan(meta: TableMetaData, expr: Expr) extends Physical
-// case class IndexScan(meta: TableMetaData, expr: Expr) extends Physical
-// case class Filter(expr: Expr, from: Physical) extends Physical
-// case class OnePassProj(exprList: List[Expr], from: Physical) extends Physical
+case class RelationMetaData(attributes: Map[String, String], reg: Int)
 
 object CodeGeneration {
   def apply(physical: Physical, varName: String) = {
-    def genCode(physical: Physical, reg: Int): (String, Int) = {
+    def genCode(physical: Physical, relMeta: RelationMetaData): (String, RelationMetaData) = {
       physical match {
-        case TableScan(meta) => tableScan(meta, reg)
-        case RangeScan(meta, expr) => rangeScan(meta, expr, reg)
-        case IndexScan(meta, expr) => indexScan(meta, expr, reg)
+        case RangeScan(meta, from, to) => rangeScan(meta, from, to, 0)
+        case IndexLookup(meta, map) => indexLookup(meta, map, relMeta.reg)
         case Filter(expr, from) =>
-          val x = genCode(from, reg)
+          val x = genCode(from, relMeta)
           (x._1 + s"Filter $expr \n", x._2)
-        case OnePassProj(meta, exprList, from) =>
-          val x = genCode(from, reg)
-          val y = onePassProj(meta, exprList, x._2)
+        case OnePassProj(exprList, from) =>
+          val x = genCode(from, relMeta)
+          val y = onePassProj(x._2, exprList)
           (x._1 + y._1, y._2)
       }
     }
-    genCode(physical, 0) match {
-      case (code, n) => code + s"auto $varName = tmp$n"
+    genCode(physical, RelationMetaData(Map(), 0)) match {
+      case (code, n) => code + s"auto $varName = tmp${n.reg}"
     }
   }
-  def tableScan(meta: TableMetaData, reg: Int) = {
-    (s"Table: ${meta.relName} - full scan returning tmp${reg}\n", reg)
+
+  def rangeScan(meta: TableMetaData, from: RangeVal, to: RangeVal, reg: Int) = {
+    (s"Table: ${meta.relName} - index range scan from ${from} to${to} on index ${meta.indexParts.last}\n",
+      RelationMetaData(Map(), reg))
   }
 
-  def rangeScan(meta: TableMetaData, expr: Expr, reg: Int) = {
-    (s"Table: ${meta.relName} - index range scan for: ${expr} returning tmp${reg}\n", reg)
-  }
-
-  // def createStruct(meta: TableMetaData, exprList: Option[List[Expression]], reg: Int): String = {
-  //   s"struct ${meta.relName}_tmp${reg} \n"
-  //   +
-  //   .foldLeft("")((acc, kv) => acc + kv._1 + kv._2)
-  //   +
-  //   "}MACRO_PACKED;\n"
-  // }
-
-  def indexScan(meta: TableMetaData, expr: Expr, reg: Int): (String, Int) = {
-    val value = expr match{
-      case LongConst(x) => x.toString
-      case StringConst(x) => x
-      case x: Attribute => x.attName
-      case _ => throw new Error("Something went horribly wrong")
+  def condTrans(expr: Expr): String = {
+    expr match {
+      case Attribute(attName)   => attName
+      case Less(left, right)    => "("  + condTrans(left) + " < "  + condTrans(right) + ")"
+      case Leq(left, right)     => "("  + condTrans(left) + " <= " + condTrans(right) + ")"
+      case Greater(left, right) => "("  + condTrans(left) + " > "  + condTrans(right) + ")"
+      case Geq(left, right)     => "("  + condTrans(left) + " >= " + condTrans(right) + ")"
+      case Equals(left, right)  => "("  + condTrans(left) + " == " + condTrans(right) + ")"
+      case Plus(left, right)    => "("  + condTrans(left) + " + "  + condTrans(right) + ")"
+      case Minus(left, right)   => "("  + condTrans(left) + " - "  + condTrans(right) + ")"
+      case And(left, right)     => "("  + condTrans(left) + " && " + condTrans(right) + ")"
+      case Or(left, right)      => "("  + condTrans(left) + " || " + condTrans(right) + ")"
+      case Not(value)           => "!(" + condTrans(value) + ")"
+      case x: Const             => x.value.toString
     }
+  }
+
+  def indexLookup(meta: TableMetaData, map: Map[String, Expr], reg: Int) = {
+    val relName = s"${meta.relName}"
     val listName = s"tmp${reg}"
-    val newType = s"${listName}_type"
-    val valName = s"${listName}_found"
+    val keyStruct = s"${relName}_key"
+    val keyType = s"${keyStruct}_type"
+    val keyStructCreate =
+      map.foldLeft("") ( (acc, ex) => acc + keyStruct + "." + ex._1 + " = " + condTrans(ex._2) + ";\n")
+    val valStruct = s"${relName}_value"
+    val valType = s"${valStruct}_type"
+    val valList = s"${valStruct}_list"
+    val index = s"${relName}_index"
     val code = s"""
-auto ${meta.relName}_index = get_index(${meta.relName});
-std::string ${meta.relName}_value_string;
-#define ${newType} ${meta.relName}_schema
-${newType} ${valName};
-std::vector<${newType}> $listName;
-if (index->get(utility::encode_safe(${value}), ${meta.relName}_value_string)) {
-  utility::decode_safe(${meta.relName}_value_string, ${valName});
-  ${listName}.push_back(${valName});
+auto $index = get_index($relName);
+std::string ${relName}_value_string;
+$keyType $keyStruct;
+$keyStructCreate
+$valType $valStruct;
+std::vector<${valType}> $valList;
+
+if (index->get(utility::encode_safe($keyStruct), ${relName}_value_string)) {
+  utility::decode_safe(${relName}_value_string, ${valStruct});
+  ${valList}.push_back(${valStruct});
 }
 
 """
-    (code, reg)
+    (code, RelationMetaData(meta.attributes, reg))
   }
 
-  def typeLookup(valName: String, meta: Map[String, TableMetaData]) = {
+  def typeLookup(valName: String, meta: RelationMetaData) = {
     // TODO: Should be done properly when operations on multiple relations are added
-    val lst = meta.toList
-    lst match {
-      case (key,TableMetaData(_, _, tables ))::x =>
-        (tables get valName) match {
-          case None => throw new Error(s"Type for variable $valName could not be found")
-          case Some(varType) => varType
-        }
-      case  _ => throw new Error("Something went wrong when trying to determine the type")
+    (meta.attributes get valName) match {
+      case None => throw new Error(s"Type for variable $valName could not be found")
+      case Some(varType) => varType
     }
   }
-  def onePassProj(meta: Map[String, TableMetaData], exprList: List[Expr], reg: Int) = {
+  def onePassProj(meta: RelationMetaData, exprList: List[Expr]) = {
+    def createRelMeta(exprList: List[Expr], map: Map[String, String]): Map[String, String] = {
+      exprList match {
+        case Nil => map
+        case x :: xs =>
+          val name = getVarName(x)
+          createRelMeta(xs, map) + (name -> typeLookup(name, meta))
+      }
+    }
+    // def find(n: Int, map: Map[String, String]): Int = {
+    //   val name = n.toString + varName
+    //     (map get name) match {
+    //     case Some(_) => find(n+1)
+    //     case None => n
+    //   }
+    // }
     def getVarName(expr: Expr) = {
       expr match {
         case Attribute(attName) => attName
-        // case LongConst(value) => s"long $value"
-        // case StringConst(value) => s"char* $value"
+        case LongConst(value)   => s"long0"
+        case StringConst(value) => s"string0"
         case _ => "" //fail here
       }
     }
+    val reg = meta.reg
     val outReg = reg + 1
     val oldListName = s"tmp${reg}"
     val newListName = s"tmp${outReg}"
@@ -105,6 +120,6 @@ ${exprList.foldLeft("") ((acc, ex) => acc + ("  " + newListName + "_" + itr + ".
   ${newListName}.push_back(${newListName}_$itr);
 }
 """
-    (struct + code, outReg)
+    (struct + code, RelationMetaData(Map(), outReg))
   }
 }

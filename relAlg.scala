@@ -1,20 +1,32 @@
 sealed trait Expr
+abstract class BinOp extends Expr {
+  def left: Expr
+  def right: Expr
+}
+abstract class RangeOp extends BinOp
+abstract class Const extends Expr {
+  def value: Any
+}
 case class Attribute(attName: String) extends Expr
-case class Less(left: Expr, right: Expr) extends Expr
-case class Leq(left: Expr, right: Expr) extends Expr
-case class Greater(left: Expr, right: Expr) extends Expr
-case class Geq(left: Expr, right: Expr) extends Expr
-case class Equals(left: Expr, right: Expr) extends Expr
-case class Plus(left: Expr, right: Expr) extends Expr
-case class Minus(left: Expr, right: Expr) extends Expr
-case class And(left: Expr, right: Expr) extends Expr
-case class Or(left: Expr, right: Expr) extends Expr
+case class Less(left: Expr, right: Expr) extends RangeOp
+case class Leq(left: Expr, right: Expr) extends RangeOp
+case class Greater(left: Expr, right: Expr) extends RangeOp
+case class Geq(left: Expr, right: Expr) extends RangeOp
+case class Equals(left: Expr, right: Expr) extends BinOp
+case class Plus(left: Expr, right: Expr) extends BinOp
+case class Minus(left: Expr, right: Expr) extends BinOp
+case class And(left: Expr, right: Expr) extends BinOp
+case class Or(left: Expr, right: Expr) extends BinOp
 case class Not(value: Expr) extends Expr
-
-// TODO: Add types floats, dates etc
-sealed trait Const extends Expr
 case class LongConst(value: Long) extends Const
 case class StringConst(value: String) extends Const
+case class BooleanConst(value: Boolean) extends Const
+// TODO: Add types floats, dates etc
+
+sealed trait RangeVal
+case class ConstVal(expr: Expr) extends RangeVal
+case class ZeroVal() extends RangeVal
+case class MaxVal() extends RangeVal
 
 sealed trait RelAlg
 case class Relation(relName: String) extends RelAlg
