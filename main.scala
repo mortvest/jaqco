@@ -9,8 +9,8 @@ object Main {
   def main(args: Array[String]) = {
     val parser = new SqlParser()
     // val sql = args(0)
-    val sql = "SELECT account_id, balance FROM ACCOUNT_RELATION WHERE account_id = account_name"
-    // val sql = "SELECT account_id, balance FROM ACCOUNT_RELATION WHERE account_id = account_name AND (account_id = 13 OR balance < 12)"
+    val sql = "SELECT account_id, balance FROM ACCOUNT_RELATION WHERE account_id < account_name AND balance = 1290"
+    // val sql = "SELECT account_id, balance FROM ACCOUNT_RELATION WHERE account_id = 12"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>

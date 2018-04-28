@@ -152,7 +152,8 @@ object Physical{
         val ind = meta.indexParts.last
         val (from, fromList) = getFrom(ind, range)
         val (to, toList) = getTo(ind, fromList)
-        val filter = andify(rest ::: snd(lookup) ::: snd(toList))
+        val lookExp = lookup.map{ case (name: String, ex: Expr) => Equals(Attribute(name), ex) }
+        val filter = andify(rest ::: lookExp ::: snd(toList))
           (from, to) match {
           case (None, None)           => None
           case (Some(ex), None)       => Some(addFilter(RangeScan(meta, ConstVal(ex), MaxVal()), filter))
