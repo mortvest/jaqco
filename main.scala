@@ -51,7 +51,7 @@ object Main {
     val parser = new SqlParser()
     // val sql = args(0)
     // val sql = "SELECT 'sup', account_id, balance FROM ACCOUNT_RELATION WHERE account_id < account_name AND  account_id > foo"
-    val sql = "SELECT balance, account_id, 1 FROM test_relation WHERE account_id = account_name"
+    val sql = "SELECT 2+3-1, balance FROM test_relation WHERE account_id = account_name"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY')"
     val query = parser.createStatement(sql)
     query match {

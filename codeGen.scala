@@ -169,23 +169,8 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
       case _ => throw new Error(s"Can not determine the type of expression")
     }
   }
-  // def typeLookup(valName: String, meta: RelationMetaData) = {
-  //   // TODO: Should be done properly when operations on multiple relations are added
-  //   (meta.attributes get valName) match {
-  //     case None => throw new Error(s"Column $valName does not exist")
-  //     case Some(varType) => varType
-  //   }
-  // }
   // TODO: Add support for constants
   def onePassProj(meta: RelationMetaData, exprList: List[Expr]) = {
-    def getValue(expr: Expr, name: String) = {
-      expr match {
-        case Attribute(attName) => name + "." + attName
-        case LongConst(value)   => value.toString
-        case StringConst(value) => "\"" + value + "\""
-        case _ => "" //fail here
-      }
-    }
     def genMap(lst: List[Expr]): Map[String, String] = {
       def fun(value: String, map: Map[String, Int]): (String, Map[String, Int]) = {
         (map get value) match {
@@ -194,18 +179,17 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
         }
       }
       def rec(lst: List[Expr], map: Map[String, Int]): Map[String, String] = {
+        def proc(expr: Expr, lst: List[Expr]) = {
+          val foundType = typeLookup(expr, meta)
+          val neu = fun(s"${foundType}_field", map)
+          Map(neu._1 -> s"$foundType") ++ rec(lst, neu._2)
+        }
         lst match {
           case x::xs => x match {
             case Attribute(attName) =>
               val neu = fun(attName, map)
               Map(neu._1 -> typeLookup(x, meta)) ++ rec(xs, neu._2)
-            case LongConst(value)   =>
-              val neu = fun("long_field", map)
-              Map(neu._1 -> "long") ++ rec(xs, neu._2)
-            case StringConst(value) =>
-              val neu = fun("string_field", map)
-              Map(neu._1 -> "string") ++ rec(xs, neu._2)
-            case _ => rec(xs, map)
+            case _ => proc(x, xs)
           }
           case Nil => Map[String, String]()
         }

@@ -182,11 +182,7 @@ object Physical{
         }
       }
       val result = foo(lst)
-      if (result == BooleanConst(true)) {
-        None
-      } else {
-        Some(result)
-      }
+      if (result == BooleanConst(true)) None else Some(result)
     }
     def lookup(indexParts: List[String], map: Map[String, List[Expr]]):
         Option[(List[Expr], Map[String, List[Expr]])] = {
@@ -209,11 +205,7 @@ object Physical{
         }
       }
       val maps = fun(indexParts, map)
-      if (maps._1.size == indexParts.size) {
-        Some(maps)
-      }else {
-        None
-      }
+      if (maps._1.size == indexParts.size) Some(maps) else None
     }
     val (mapping, restLst) = getRefs(cond, meta)
     lookup(meta.indexParts, mapping) match {
