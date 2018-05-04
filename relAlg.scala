@@ -21,6 +21,7 @@ case class Not(value: Expr) extends Expr
 case class LongConst(value: Long) extends Const
 case class StringConst(value: String) extends Const
 case class BooleanConst(value: Boolean) extends Const
+case class CharConst(value: Char) extends Const
 // TODO: Add types floats, dates etc
 
 sealed trait RangeVal
