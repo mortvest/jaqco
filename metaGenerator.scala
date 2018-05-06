@@ -3,20 +3,19 @@ import com.facebook.presto.sql.tree._
 import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 
-// case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, String])
-
 object MetaGenerator {
   def translateType(sqlType: String) = {
+    val stringPattern = "VARCHAR\\(([0-9]+)\\)".r
     sqlType match {
-      case "INT" => "int"
-      case "LONG" => "long"
-      case "VARCHAR" => "std::string"
-      case _ => throw new Error(s"Type ${sqlType} is not supported")
+      case "INT" => SimpleType("int")
+      case "LONG" => SimpleType("long")
+      case stringPattern(size) => StringType(size.toInt)
+      case _ => throw new Error(s"Type ${sqlType} is not supported (yet)")
     }
   }
-  def genAttributes(lst: List[TableElement]): (Map[String, String]) = {
+  def genAttributes(lst: List[TableElement]): (Map[String, DataType]) = {
     lst match {
-      case Nil => Map[String, String]()
+      case Nil => Map[String, DataType]()
       case (x:ColumnDefinition)::xs =>
         val name = x.getName.getValue()
         val valType = x.getType.toString
@@ -32,8 +31,8 @@ object MetaGenerator {
         toScala(x.getComment) match {
           case None => findIndexParts(xs)
           case Some(comment) =>
-            comment match {
-              case "KEY" | "key" => name :: findIndexParts(xs)
+            comment.capitalize match {
+              case "KEY" => name :: findIndexParts(xs)
               case _ => findIndexParts(xs)
             }
         }

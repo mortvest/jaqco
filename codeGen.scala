@@ -1,4 +1,5 @@
-case class RelationMetaData(attributes: Map[String, String], name: String, typeName: String)
+case class RelationMetaData(attributes: Map[String, DataType], name: String, typeName: String)
+//hack to introduce call by reference
 case class Ref(relNum: Int, counter: Int, fun: (Int => Unit))
 
 object CodeGeneration {
@@ -51,15 +52,28 @@ for (const auto &${iterator} : ${oldListName}) {
     (code, RelationMetaData(meta.attributes, newListName, meta.typeName))
   }
 
-  def rangeScan(meta: TableMetaData, from: List[(String, RangeVal)], to: List[(String, RangeVal)],
+  def rangeScan(meta: TableMetaData, from: List[(DataType, RangeVal)], to: List[(DataType, RangeVal)],
     ref: Ref) = {
-    def conv(value: RangeVal, meta: TableMetaData, indexType: String): String = {
-      value match {
-        // TODO: Add support for strings here
-        case ConstVal(expr) =>
-          condTrans(expr, RelationMetaData(meta.attributes, "", ""), "")
-        case ZeroVal() => s"std::numeric_limits<$indexType>::min()"
-        case MaxVal() => s"std::numeric_limits<$indexType>::max()"
+    def conv(value: RangeVal, indexType: DataType, meta: TableMetaData, struct: String, field: String): String = {
+      val curName = struct + "." + field
+      indexType match {
+        case SimpleType(typeName) => value match {
+          case ConstVal(expr) =>
+            val exp = condTrans(expr, RelationMetaData(meta.attributes, "", ""), "")
+            s"$curName = $exp"
+          case ZeroVal() => s"$curName = std::numeric_limits<${typeName}>::min();"
+          case MaxVal()  => s"$curName = std::numeric_limits<${typeName}>::max();"
+        }
+        case StringType(len) => value match {
+          case ConstVal(expr) =>
+            val str = condTrans(expr, RelationMetaData(meta.attributes, "", ""), "")
+            // TODO: Buffer overflow?
+            // Include <cstring>
+            s"std::strcpy($curName, $str);"
+          case ZeroVal() => ""
+          case MaxVal() =>
+            s"std::fill_n($curName, $len, std::numeric_limits<unsigned char>::max());"
+        }
       }
     }
     val relName = s"${meta.relName}"
@@ -76,8 +90,11 @@ for (const auto &${iterator} : ${oldListName}) {
     val code =s"""
 auto ${index} = get_index("${relName}");
 ${pushType} ${push};
-${keyType} ${fromKey} { ${(from.foldLeft("")( (acc, x) => acc + conv(x._2, meta, x._1) + ", " )).dropRight(2) }};
-${keyType} ${toKey} { ${(to.foldLeft("")( (acc, x) => acc + conv(x._2, meta, x._1) + ", " )).dropRight(2) }};
+
+${keyType} ${fromKey}{};
+${((from zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, fromKey, y) + "\n"}) }
+${keyType} ${toKey}{};
+${((to zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, toKey, y) + "\n"}) }
 const auto& ${fromString} = reactdb::utility::encode_safe(${fromKey});
 const auto& ${toString} = reactdb::utility::encode_safe(${toKey});
 ${index}->range_scan(&${fromString}, &${toString}, ${push});
@@ -138,16 +155,16 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
     (code, RelationMetaData(meta.attributes, listName, valType))
   }
 
-  def typeLookup(expr: Expr, meta: RelationMetaData): String = {
-    def checkBin(left: Expr, right: Expr): String = {
+  def typeLookup(expr: Expr, meta: RelationMetaData): DataType = {
+    def checkBin(left: Expr, right: Expr) = {
       val l = typeLookup(left, meta)
       val r = typeLookup(right, meta)
       if (l == r) l else throw new Error(s"Operands of $l and $r must be of the same type")
     }
-    def checkBool(left: Expr, right: Expr, opName: String): String = {
+    def checkBool(left: Expr, right: Expr, opName: String) = {
       val l = typeLookup(left, meta)
       val r = typeLookup(right, meta)
-      if (l == "bool" && r == "bool") l
+      if (l == SimpleType("bool") && r == SimpleType("bool")) l
       else throw new Error(s"Operands of ${opName} must be boolean")
     }
     expr match {
@@ -160,16 +177,17 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
       case x: BinOp => checkBin(x.left, x.right)
       case Not(expr) =>
         val e = typeLookup(expr, meta)
-        if (e != "bool") throw new Error(s"Argument of NOT must be type boolean")
+        if (e != SimpleType("bool")) throw new Error(s"Argument of NOT must be type boolean")
         else e
-      case LongConst(value)    => "long"
-      case StringConst(value)  => "string"
-      case BooleanConst(value) => "bool"
-      case CharConst(value)    => "char"
+      case LongConst(value)    => SimpleType("long")
+      case StringConst(value)  =>
+        val len = if (value.size < 255) 255 else 65536
+        StringType(len)
+      case BooleanConst(value) => SimpleType("bool")
+      case CharConst(value)    => SimpleType("char")
       case _ => throw new Error(s"Can not determine the type of expression")
     }
   }
-  // TODO: Add support for constants
   def onePassProj(meta: RelationMetaData, exprList: List[Expr]) = {
     def genMap(lst: List[Expr]): Map[String, String] = {
       def fun(value: String, map: Map[String, Int]): (String, Map[String, Int]) = {
@@ -180,15 +198,26 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
       }
       def rec(lst: List[Expr], map: Map[String, Int]): Map[String, String] = {
         def proc(expr: Expr, lst: List[Expr]) = {
-          val foundType = typeLookup(expr, meta)
-          val neu = fun(s"${foundType}_field", map)
-          Map(neu._1 -> s"$foundType") ++ rec(lst, neu._2)
+          typeLookup(expr, meta) match {
+            case SimpleType(foundType) =>
+              val neu = fun(s"${foundType}_field", map)
+              Map(neu._1 -> s"$foundType") ++ rec(lst, neu._2)
+            case StringType(len) =>
+              val neu = fun("char_field", map)
+              Map(neu._1 + s"[${len}]" -> "char") ++ rec(lst, neu._2)
+          }
         }
         lst match {
           case x::xs => x match {
             case Attribute(attName) =>
-              val neu = fun(attName, map)
-              Map(neu._1 -> typeLookup(x, meta)) ++ rec(xs, neu._2)
+              typeLookup(x, meta) match {
+                case SimpleType(foundType) =>
+                  val neu = fun(attName, map)
+                  Map(neu._1 -> foundType) ++ rec(xs, neu._2)
+                case StringType(len) =>
+                  val neu = fun(attName, map)
+                  Map(neu._1 + s"[${len}]" -> "char") ++ rec(xs, neu._2)
+              }
             case _ => proc(x, xs)
           }
           case Nil => Map[String, String]()
@@ -204,7 +233,7 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
     val itr2 = "old_i"
     val itr3 = "new_i"
     val newMap = genMap(exprList)
-    val struct = s"struct ${newTypeName} {\n" + newMap.foldLeft("") ((acc, x) => acc + x._2 + " " + x._1 +";\n" )+ "}MACRO_PACKED;\n"
+    val struct = s"struct ${newTypeName} {\n" + newMap.foldLeft("") ((acc, x) => acc + "  " + x._2 + " " + x._1 +";\n" )+ "}MACRO_PACKED;\n"
     val update = exprList.foldLeft("") ((acc, ex) => acc + (condTrans(ex, meta, itr2) + ", ")).dropRight(2)
     val code = s"""
 std::vector<${newTypeName}> ${newListName};
@@ -213,6 +242,7 @@ for (auto &${itr2} : ${oldListName}) {
   ${newListName}.push_back($itr3);
 }
 """
-    ("//projection \n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
+    // ("//projection \n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
+    ("//projection \n" + struct + code, RelationMetaData(Map[String, DataType](), s"$newListName", s"$newTypeName"))
   }
 }

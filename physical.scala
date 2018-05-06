@@ -1,10 +1,10 @@
 final case class Error(private val message: String = "",
   private val cause: Throwable = None.orNull) extends Exception(message, cause)
 
-case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, String])
+case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, DataType])
 
 sealed trait Physical
-case class RangeScan(meta: TableMetaData, from: List[(String, RangeVal)], to: List[(String, RangeVal)])
+case class RangeScan(meta: TableMetaData, from: List[(DataType, RangeVal)], to: List[(DataType, RangeVal)])
     extends Physical
 case class IndexLookup(meta: TableMetaData, map: Map[String, Expr]) extends Physical
 case class Filter(expr: Expr, from: Physical) extends Physical
@@ -34,7 +34,7 @@ object Physical{
       case Some(x) => x
     }
   }
-
+// TODO: Fix the bug when > then < on same attribute -> one is sent to the filter. Why?
   def translateCond(cond: Expr, meta: TableMetaData) = {
     def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
       expr match {
@@ -60,28 +60,33 @@ object Physical{
           ((merge(lf._1, rt._1)), (lf._2 ::: rt._2))
         case Equals(Attribute(attName), exp) if isMatching(exp, meta, attName) =>
           (Map(attName -> List(expr)), Nil)
-        case Equals(exp, Attribute(attName)) if isMatching(expr, meta, attName) =>
+        case Equals(exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(Equals(Attribute(attName), exp))), Nil)
+        case Less(Attribute(attName), exp) if isMatching(exp, meta, attName) =>
           (Map(attName -> List(expr)), Nil)
-        case x: RangeOp => (x.left, x.right) match {
-          case (Attribute(attName), exp) if isMatching(exp, meta, attName) =>
-            (Map(attName -> List(expr)), Nil)
-          case (exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
-            (Map(attName -> List(expr)), Nil)
-          case _ => (Map[String, List[Expr]](), List(x))
-        }
+        case Less(exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(Less(Attribute(attName), exp))), Nil)
+        case Leq(Attribute(attName), exp) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(expr)), Nil)
+        case Leq(exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(Leq(Attribute(attName), exp))), Nil)
+        case Greater(Attribute(attName), exp) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(expr)), Nil)
+        case Greater(exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(Greater(Attribute(attName), exp))), Nil)
+        case Geq(Attribute(attName), exp) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(expr)), Nil)
+        case Geq(exp, Attribute(attName)) if isMatching(exp, meta, attName) =>
+          (Map(attName -> List(Geq(Attribute(attName), exp))), Nil)
         case x => (Map[String, List[Expr]](), List(x))
       }
     }
     def findG(lst: List[Expr]): (Option[Expr], List[Expr]) = {
       lst match {
         case x::xs => x match {
-          case Greater(Attribute(name), expr)  => (Some(expr), xs)
-          case Greater(expr, Attribute(name))  => (Some(expr), xs)
-          case Geq(Attribute(name), expr)      => (Some(expr), lst)
-          case Geq(expr, Attribute(name))      => (Some(expr), lst)
-          case _ =>
-            val y = findG(xs)
-            (y._1, lst)
+          case Greater(Attribute(name), expr)  => (Some(expr), lst)
+          case Geq(Attribute(name), expr)      => (Some(expr), xs)
+          case _ => val y = findG(xs); (y._1, lst)
         }
         case Nil => (None, Nil)
       }
@@ -90,13 +95,9 @@ object Physical{
     def findL(lst: List[Expr]): (Option[Expr], List[Expr]) = {
       lst match {
         case x::xs => x match {
-          case Less(Attribute(name), expr)  => (Some(expr), xs)
-          case Less(expr, Attribute(name))  => (Some(expr), xs)
-          case Leq(Attribute(name), expr)   => (Some(expr), lst)
-          case Leq(expr, Attribute(name))   => (Some(expr), lst)
-          case _ =>
-            val y = findG(xs)
-            (y._1, lst)
+          case Less(Attribute(name), expr) => (Some(expr), lst)
+          case Leq(Attribute(name), expr)  => (Some(expr), xs)
+          case _ => val y = findL(xs); (y._1, lst)
         }
         case Nil => (None, Nil)
       }
@@ -117,7 +118,7 @@ object Physical{
           case Equals(Attribute(name), expr) => (Some(expr), xs)
           case Equals(expr, Attribute(name)) => (Some(expr), xs)
           case _ =>
-            val y = findG(xs)
+            val y = findN(xs)
             (y._1, lst)
         }
         case Nil => (None, Nil)

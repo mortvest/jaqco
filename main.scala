@@ -43,16 +43,17 @@ import scala.io.Source
 //   }
 // }
 
+// case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, DataType])
+
 object Main {
   // TODO: uppercase/lowercase inside the metadata
   val meta = Map[String, TableMetaData]("test_relation" ->
-    TableMetaData("test_relation", List("account_id"), Map("account_id" -> "int", "balance" -> "float")))
+    TableMetaData("test_relation", List("account_name"), Map("account_name" -> StringType(255), "balance" -> SimpleType("int"), "account_id" -> SimpleType("int"))))
   def main(args: Array[String]) = {
     val parser = new SqlParser()
-    // val sql = args(0)
-    // val sql = "SELECT 'sup', account_id, balance FROM ACCOUNT_RELATION WHERE account_id < account_name AND  account_id > foo"
-    val sql = "SELECT 2+3-1, balance FROM test_relation WHERE account_id = account_name"
-    // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY')"
+    val sql = "SELECT account_name, account_name, 'sup' FROM test_relation WHERE account_name <= 'hello' AND account_name >= 'zzzz'"
+    // val sql = "SELECT account_name, account_name, 'sup' FROM test_relation WHERE account_id <= 12"
+    // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>
@@ -66,10 +67,10 @@ object Main {
         println(CodeGeneration(Physical(RelAlg(q), meta), "customer_id_key", 0))
       // TODO INSERT
       // case q: Insert => println("This is an insert!")
-      // case q: CreateTable =>
-      //   val meta = MetaGenerator(q)
-      //   println(meta)
-      //   println(DDLProcessor(meta))
+      case q: CreateTable =>
+        val meta = MetaGenerator(q)
+        println(meta)
+        // println(DDLProcessor(meta))
       // TODO Updaate - also in parser...
       // case q: Update => println("This is a create")
       case _ => println("Operation is not supported")

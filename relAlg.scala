@@ -19,10 +19,15 @@ case class And(left: Expr, right: Expr) extends BinOp
 case class Or(left: Expr, right: Expr) extends BinOp
 case class Not(value: Expr) extends Expr
 case class LongConst(value: Long) extends Const
+// case class StringConst(value: String, maxLen: Int) extends Const
 case class StringConst(value: String) extends Const
 case class BooleanConst(value: Boolean) extends Const
 case class CharConst(value: Char) extends Const
 // TODO: Add types floats, dates etc
+
+sealed trait DataType
+case class SimpleType(typeName: String) extends DataType
+case class StringType(size: Int) extends DataType
 
 sealed trait RangeVal
 case class ConstVal(expr: Expr) extends RangeVal
