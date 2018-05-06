@@ -60,7 +60,7 @@ for (const auto &${iterator} : ${oldListName}) {
         case SimpleType(typeName) => value match {
           case ConstVal(expr) =>
             val exp = condTrans(expr, RelationMetaData(meta.attributes, "", ""), "")
-            s"$curName = $exp"
+            s"$curName = $exp;"
           case ZeroVal() => s"$curName = std::numeric_limits<${typeName}>::min();"
           case MaxVal()  => s"$curName = std::numeric_limits<${typeName}>::max();"
         }

@@ -86,7 +86,7 @@ object Physical{
         case x::xs => x match {
           case Greater(Attribute(name), expr)  => (Some(expr), lst)
           case Geq(Attribute(name), expr)      => (Some(expr), xs)
-          case _ => val y = findG(xs); (y._1, lst)
+          case _ => val y = findG(xs); (y._1, x::y._2)
         }
         case Nil => (None, Nil)
       }
@@ -97,7 +97,8 @@ object Physical{
         case x::xs => x match {
           case Less(Attribute(name), expr) => (Some(expr), lst)
           case Leq(Attribute(name), expr)  => (Some(expr), xs)
-          case _ => val y = findL(xs); (y._1, lst)
+          // case _ => val y = findL(xs); (y._1, lst)
+          case _ => val y = findL(xs); (y._1, x::y._2)
         }
         case Nil => (None, Nil)
       }
@@ -117,9 +118,8 @@ object Physical{
         case x::xs => x match {
           case Equals(Attribute(name), expr) => (Some(expr), xs)
           case Equals(expr, Attribute(name)) => (Some(expr), xs)
-          case _ =>
-            val y = findN(xs)
-            (y._1, lst)
+          // case _ => val y = findL(xs); (y._1, lst)
+          case _ => val y = findN(xs); (y._1, x::y._2)
         }
         case Nil => (None, Nil)
       }
@@ -134,7 +134,7 @@ object Physical{
               case Some(ex) =>
                 val (newList, newMap) = iter(xs, map)
                 (ConstVal(ex) :: newList, newMap)
-              case None => findG(exList) match {
+              case None => println(s"FOUND: ${findG(exList)}"); findG(exList) match {
                 case (None, _) => (ZeroVal() :: xs.map{ case x => ZeroVal() }, map)
                 case (Some(y), newList) => (ConstVal(y) :: xs.map{ case x => ZeroVal() },
                   ((map - x) + (x -> newList)))
