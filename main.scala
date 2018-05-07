@@ -48,12 +48,13 @@ import scala.io.Source
 object Main {
   // TODO: uppercase/lowercase inside the metadata
   val meta = Map[String, TableMetaData]("saving" ->
-    TableMetaData("saving", List("account_id"),
+    TableMetaData("saving", List("user_name", "account_id"),
       Map("account_id" -> SimpleType("int"),
+        "user_name" -> StringType(255),
         "balance" -> SimpleType("int"))))
   def main(args: Array[String]) = {
     val parser = new SqlParser()
-    val sql = "SELECT balance FROM saving WHERE account_id = account_name"
+    val sql = "SELECT balance FROM saving WHERE user_name = 'David' AND account_id = 2"
     // val sql = "SELECT account_name, account_name, 'sup' FROM test_relation WHERE account_id <= 12"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)

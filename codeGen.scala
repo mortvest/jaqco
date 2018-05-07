@@ -128,13 +128,22 @@ auto ${listName} = std::move(${push}.vec);
   }
 
   def indexLookup(meta: TableMetaData, map: Map[String, Expr], ref: Ref) = {
+    def genAssign(name: String, value: String, new_struct: String) = {
+      val dest = s"${new_struct}.${name}"
+      (meta.attributes get name).get match {
+        case SimpleType(_) => s"${dest} = ${value};"
+        case StringType(_) => s"std::strcpy($dest, ${value});"
+      }
+    }
     val relName  = s"${meta.relName}"
     val listName = s"${newTag(ref)}_${relName}"
     val keyStruct = s"${listName}_key"
     val keyType = s"${relName}_key_type"
     val valueString = s"${listName}_value_string"
+    // val keyStructCreate = map.foldLeft("") ( (acc, ex) =>
+    //   acc + keyStruct + "." + ex._1 + " = " + condTrans(ex._2, RelationMetaData(Map(),"",""), "") + ";\n")
     val keyStructCreate = map.foldLeft("") ( (acc, ex) =>
-      acc + keyStruct + "." + ex._1 + " = " + condTrans(ex._2, RelationMetaData(Map(),"",""), "") + ";\n")
+      acc + genAssign(ex._1 ,condTrans(ex._2, RelationMetaData(Map(),"",""), ""), keyStruct) + ";\n")
     val valStruct = s"${relName}_value"
     val valType = s"${relName}_type"
     val index = s"${listName}_index"
@@ -142,12 +151,12 @@ auto ${listName} = std::move(${push}.vec);
 //index lookup
 auto $index = get_index("$relName");
 std::string ${valueString};
-$keyType $keyStruct;
+$keyType $keyStruct {};
 $keyStructCreate
 std::vector<${valType}> $listName;
 
 if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
-  $valType $valStruct;
+  $valType $valStruct {};
   utility::decode_safe(${valueString}, ${valStruct});
   ${listName}.push_back(${valStruct});
 }
@@ -243,6 +252,6 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, it
 }
 """
     val newMap = (mainList.map{ case x => (x._1 -> x._2) }).toMap
-    ("//projection \n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
+    ("//projection\n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
   }
 }
