@@ -189,41 +189,88 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
     }
   }
   def onePassProj(meta: RelationMetaData, exprList: List[Expr]) = {
-    def genMap(lst: List[Expr]): Map[String, String] = {
+    // def genMap(lst: List[Expr]): Map[String, String] = {
+    //   def fun(value: String, map: Map[String, Int]): (String, Map[String, Int]) = {
+    //     (map get value) match {
+    //       case None => (value, map + (value -> 1))
+    //       case Some(x) => (value + x.toString, map + (value -> (x + 1)))
+    //     }
+    //   }
+    //   def rec(lst: List[Expr], map: Map[String, Int]): Map[String, String] = {
+    //     def proc(expr: Expr, lst: List[Expr]) = {
+    //       typeLookup(expr, meta) match {
+    //         case SimpleType(foundType) =>
+    //           val neu = fun(s"${foundType}_field", map)
+    //           Map(neu._1 -> s"$foundType") ++ rec(lst, neu._2)
+    //         case StringType(len) =>
+    //           val neu = fun("char_field", map)
+    //           Map(neu._1 + s"[${len}]" -> "char") ++ rec(lst, neu._2)
+    //       }
+    //     }
+    //     lst match {
+    //       case x::xs => x match {
+    //         case Attribute(attName) =>
+    //           typeLookup(x, meta) match {
+    //             case SimpleType(foundType) =>
+    //               val neu = fun(attName, map)
+    //               Map(neu._1 -> foundType) ++ rec(xs, neu._2)
+    //             case StringType(len) =>
+    //               val neu = fun(attName, map)
+    //               Map(neu._1 + s"[${len}]" -> "char") ++ rec(xs, neu._2)
+    //           }
+    //         case _ => proc(x, xs)
+    //       }
+    //       case Nil => Map[String, String]()
+    //     }
+    //   }
+    //   rec(lst, Map[String, Int]())
+    // }
+    def genMap(lst: List[Expr], structName: String): List[(String, DataType, String, String, String)] = {
       def fun(value: String, map: Map[String, Int]): (String, Map[String, Int]) = {
         (map get value) match {
           case None => (value, map + (value -> 1))
           case Some(x) => (value + x.toString, map + (value -> (x + 1)))
         }
       }
-      def rec(lst: List[Expr], map: Map[String, Int]): Map[String, String] = {
-        def proc(expr: Expr, lst: List[Expr]) = {
+      def rec(lst: List[Expr], map: Map[String, Int]): List[(String, DataType, String, String, String)] = {
+        def procExp(expr: Expr, lst: List[Expr]) = {
+          val value = condTrans(expr, meta, structName)
           typeLookup(expr, meta) match {
             case SimpleType(foundType) =>
               val neu = fun(s"${foundType}_field", map)
-              Map(neu._1 -> s"$foundType") ++ rec(lst, neu._2)
+              List((neu._1, SimpleType(foundType), value, foundType, neu._1)) ::: rec(lst, neu._2)
             case StringType(len) =>
               val neu = fun("char_field", map)
-              Map(neu._1 + s"[${len}]" -> "char") ++ rec(lst, neu._2)
+              List((neu._1, StringType(len), value, "char", s"${neu._1}[${len}]")) ::: rec(lst, neu._2)
+          }
+        }
+        def procAtt(name:String, expr: Expr, lst: List[Expr]) = {
+          val value = condTrans(expr, meta, structName)
+          typeLookup(expr, meta) match {
+            case SimpleType(foundType) =>
+              val neu = fun(s"$name", map)
+              List((neu._1, SimpleType(foundType), value, foundType, neu._1)) ::: rec(lst, neu._2)
+            case StringType(len) =>
+              val neu = fun(s"$name", map)
+              List((neu._1, StringType(len), value, "char", s"${neu._1}[${len}]")) ::: rec(lst, neu._2)
           }
         }
         lst match {
           case x::xs => x match {
-            case Attribute(attName) =>
-              typeLookup(x, meta) match {
-                case SimpleType(foundType) =>
-                  val neu = fun(attName, map)
-                  Map(neu._1 -> foundType) ++ rec(xs, neu._2)
-                case StringType(len) =>
-                  val neu = fun(attName, map)
-                  Map(neu._1 + s"[${len}]" -> "char") ++ rec(xs, neu._2)
-              }
-            case _ => proc(x, xs)
+            case Attribute(name) => procAtt(name, x, xs)
+            case _ => procExp(x, xs)
           }
-          case Nil => Map[String, String]()
+          case Nil => List[(String, DataType, String, String, String)]()
         }
       }
       rec(lst, Map[String, Int]())
+    }
+    def genAssign(ty: DataType, name: String, value: String, new_struct: String) = {
+      val dest = s"${new_struct}.${name}"
+      ty match {
+        case SimpleType(_) => s"$dest = ${value};"
+        case StringType(_) => s"std::strcpy($dest, ${value});"
+      }
     }
     val oldListName = meta.name
     val newListName = s"${oldListName}_proj"
@@ -232,17 +279,17 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
     val itr1 = "i"
     val itr2 = "old_i"
     val itr3 = "new_i"
-    val newMap = genMap(exprList)
-    val struct = s"struct ${newTypeName} {\n" + newMap.foldLeft("") ((acc, x) => acc + "  " + x._2 + " " + x._1 +";\n" )+ "}MACRO_PACKED;\n"
-    val update = exprList.foldLeft("") ((acc, ex) => acc + (condTrans(ex, meta, itr2) + ", ")).dropRight(2)
+    val mainList = genMap(exprList, itr2)
+    val struct = s"struct ${newTypeName} {\n" + mainList.foldLeft("") ((acc, x) => acc + "  " + x._4 + " " + x._5 +";\n" )+ "}MACRO_PACKED;\n"
     val code = s"""
 std::vector<${newTypeName}> ${newListName};
 for (auto &${itr2} : ${oldListName}) {
-  ${newTypeName} $itr3{$update};
+  ${newTypeName} $itr3{};
+${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, itr3) + "\n").dropRight(1)}
   ${newListName}.push_back($itr3);
 }
 """
-    // ("//projection \n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
-    ("//projection \n" + struct + code, RelationMetaData(Map[String, DataType](), s"$newListName", s"$newTypeName"))
+    val newMap = (mainList.map{ case x => (x._1 -> x._2) }).toMap
+    ("//projection \n" + struct + code, RelationMetaData(newMap, s"$newListName", s"$newTypeName"))
   }
 }
