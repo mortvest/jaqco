@@ -79,7 +79,7 @@ for (const auto &${iterator} : ${oldListName}) {
     val relName = s"${meta.relName}"
     val listName = s"${newTag(ref)}_${relName}"
     val push = s"${listName}_push"
-    val pushType = s"${relName}_type"
+    val pushType = s"${relName}_push_type"
     val index = s"${listName}_index"
     val fromString = s"${listName}_from_string"
     val toString = s"${listName}_to_string"
