@@ -142,6 +142,14 @@ object Physical {
           val rightRel = getTable(right)
           (left.getAlias.toString, leftRel.getName.toString) ::
           (right.getAlias.toString, rightRel.getName.toString) :: Nil
+        case (left: AliasedRelation, right: Table) =>
+          val leftRel = getTable(left)
+          val rightName = right.getName.toString
+          (left.getAlias.toString, leftRel.getName.toString) :: (rightName, rightName) :: Nil
+        case (left: Table, right: AliasedRelation) =>
+          val leftName = left.getName.toString
+          val rightRel = getTable(right)
+            (leftName, leftName) :: (right.getAlias.toString, rightRel.getName.toString) :: Nil
         case (left: AliasedRelation, right: Join) =>
           val leftRel = getTable(left)
           (left.getAlias.toString, leftRel.getName.toString) :: proc(right)
@@ -157,7 +165,7 @@ object Physical {
     }
     val lst = proc(tree)
     if (lst.groupBy(_._1).exists{ case (k, v) => v.size > 1 })
-      throw new Error("There are duplicate aliases/tables in FROM closure")
+      throw new Error("There are duplicate aliases/tables in FROM clause")
     else
       lst.toMap
   }
@@ -215,8 +223,9 @@ object Physical {
   def checkAmbiguity(name: String) (tables: Map[String, Map[String, DataType]])  = {
     val map = tables.map{ case (k, m) => (k -> m.contains(name)) }
     val numTable = map.count{ case (k,v) => v }
+    println(map)
     numTable match {
-      case 1 => map.head._1
+      case 1 => (map.filter{ case (k, v) => v }).head._1
       case n if n > 1 => throw new Error(s"""Column reference \"${name}\" is ambiguous""")
       case _ => throw new Error(s"""Column \"${name}\" does not exist""")
     }
@@ -292,8 +301,9 @@ object Physical {
           case "IMPLICIT" => parseJoin(x)
           case joinType => throw new Error(s"$joinType JOIN is not supported")
         }
+        println(aliasMap)
         val newMap = filterMap(meta, aliasMap)
-        println(newMap)
+        // println(newMap)
         val aliasedProj = projList.map {
           case expr =>
             joinAlias(
@@ -313,6 +323,7 @@ object Physical {
             )
           case None => None
         }
+        println(s"proj: ${aliasedProj}, cond: ${cond}, from: ${aliasMap}")
         EmptyQuery()
         // tupleList.foldRight(List[Physical]())( (x, acc) => x :: acc )
       case x => throw new Error(s"Selection from $x is not supported yet")
