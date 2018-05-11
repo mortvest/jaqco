@@ -1,41 +1,5 @@
-final case class Error(private val message: String = "",
-  private val cause: Throwable = None.orNull) extends Exception(message, cause)
-
-case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, DataType])
-
-sealed trait Physical
-case class RangeScan(meta: TableMetaData, from: List[(DataType, RangeVal)], to: List[(DataType, RangeVal)])
-    extends Physical
-case class IndexLookup(meta: TableMetaData, map: Map[String, Expr]) extends Physical
-case class Filter(expr: Expr, from: Physical) extends Physical
-case class OnePassProj(exprList: List[Expr], from: Physical) extends Physical
-
-object Physical{
-  def apply(relAlg: RelAlg, meta: Map[String, TableMetaData]): Physical = {
-    relAlg match {
-      case Selection(cond, from) =>
-        from match {
-          case Relation(name) => translateCond(cond, getMeta(meta, name))
-          case _ => Filter(cond, apply(from, meta))
-        }
-      case Relation(name) =>
-        val tMeta = getMeta(meta, name)
-        val types = tMeta.indexParts.map { case x => (tMeta.attributes get x).get }
-        RangeScan(tMeta,
-          (types zip tMeta.indexParts.map { case c => ZeroVal() }),
-          (types zip tMeta.indexParts.map { case c => MaxVal() }))
-      case Projection(attList, from) => OnePassProj(attList, apply(from, meta))
-      case _ => throw new Error("Not implemented yet")
-    }
-  }
-  def getMeta(meta: Map[String, TableMetaData], name: String) = {
-    meta get name match {
-      case None => throw new Error("Relation with that name does not exist")
-      case Some(x) => x
-    }
-  }
-// TODO: Fix the bug when > then < on same attribute -> one is sent to the filter. Why?
-  def translateCond(cond: Expr, meta: TableMetaData) = {
+object Translator{
+  def translateCond(cond: Expr, meta: TableMetaData, alias: String): (Physical, Option[Expr]) = {
     def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
       expr match {
         case x: BinOp => isConstExpr(x.left, meta) && isConstExpr(x.right, meta)
@@ -179,11 +143,11 @@ object Physical{
         lst match {
           case x::Nil => x
           case x::xs => And(x, foo(xs))
-          case _ => BooleanConst(true)
+          case _ => Const("true", SimpleType("bool"))
         }
       }
       val result = foo(lst)
-      if (result == BooleanConst(true)) None else Some(result)
+      if (result == Const("true", SimpleType("bool"))) None else Some(result)
     }
     def lookup(indexParts: List[String], map: Map[String, List[Expr]]):
         Option[(List[Expr], Map[String, List[Expr]])] = {
@@ -212,16 +176,16 @@ object Physical{
     lookup(meta.indexParts, mapping) match {
       case Some(k) =>
         andify(mapToList(k._2) ::: restLst) match {
-          case None => IndexLookup(meta, (meta.indexParts zip k._1).toMap)
-          case Some(expr) => Filter(expr, IndexLookup(meta, (meta.indexParts zip k._1).toMap))
+          case None => (IndexLookup(meta, (meta.indexParts zip k._1).toMap, alias), None)
+          case Some(expr) => (IndexLookup(meta, (meta.indexParts zip k._1).toMap, alias), Some(expr))
         }
       case None =>
         val types = meta.indexParts.map { case x => (meta.attributes get x).get }
         val (fromLst, fromMap) = getFrom(meta.indexParts, mapping)
         val (toLst, toMap) = getTo(meta.indexParts, fromMap)
         andify(mapToList(toMap) ::: restLst) match {
-          case None => RangeScan(meta, (types zip fromLst), (types zip toLst))
-          case Some(expr) => Filter(expr, RangeScan(meta, (types zip fromLst), (types zip toLst)))
+          case None => (RangeScan(meta, (types zip fromLst), (types zip toLst), alias), None)
+          case Some(expr) => (RangeScan(meta, (types zip fromLst), (types zip toLst), alias), Some(expr))
         }
     }
   }

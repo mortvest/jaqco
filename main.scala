@@ -54,20 +54,22 @@ object Main {
         "balance" -> SimpleType("int"))))
   def main(args: Array[String]) = {
     val parser = new SqlParser()
-    val sql = "SELECT balance FROM saving WHERE account_id > 1"
-    // val sql = "SELECT account_name, account_name, 'sup' FROM test_relation WHERE account_id <= 12"
+    // val sql = "SELECT balance FROM saving WHERE account_id > 1"
+    val sql = "SELECT A.account_id FROM saving A, saving B WHERE A.balance = 2"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>
         println("\n*** QUERY GIVEN:\n")
         println(sql)
-        println("\n*** RELATIONAL ALGEBRA:\n")
-        println(RelAlg(q))
+        // println("\n*** RELATIONAL ALGEBRA:\n")
         println("\n*** PHYSICAL PLAN:\n")
-        println(Physical(RelAlg(q), meta))
-        println("\n*** GENERATED CODE:\n")
-        println(CodeGeneration(Physical(RelAlg(q), meta), "customer_id_key", 0))
+        println(Physical(q, meta))
+        // println(RelAlg(q))
+        // println("\n*** PHYSICAL PLAN:\n")
+        // println(Physical(RelAlg(q), meta))
+        // println("\n*** GENERATED CODE:\n")
+        // println(CodeGeneration(Physical(RelAlg(q), meta), "customer_id_key", 0))
       // TODO INSERT
       // case q: Insert => println("This is an insert!")
       case q: CreateTable =>
