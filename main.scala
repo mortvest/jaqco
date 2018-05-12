@@ -49,24 +49,24 @@ object Main {
   // TODO: uppercase/lowercase inside the metadata
   val meta = Map[String, TableMetaData](
     "saving" ->
-      TableMetaData("saving", List("account_id"),
+      TableMetaData("saving", List("user_name", "balance"),
         Map("user_name" -> StringType(255),
           "balance" -> SimpleType("int"))),
     "other_table" ->
       TableMetaData("other_table", List("account_id"),
-        Map("account_id" -> SimpleType("int")))
+        Map("account_id" -> SimpleType("int"),
+          "balance" -> SimpleType("int")))
   )
   def main(args: Array[String]) = {
     val parser = new SqlParser()
-    // val sql = "SELECT balance FROM saving WHERE account_id > 1"
-    val sql = "SELECT user_name FROM saving A, other_table A WHERE account_id = 2"
+    val sql = "SELECT * FROM saving A, other_table B WHERE A.user_name = 'Billy' AND account_id = 2 AND A.balance < B.balance"
+    // val sql = "SELECT user_name FROM saving A, other_table B WHERE B.account_id = 2"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>
         println("\n*** QUERY GIVEN:\n")
         println(sql)
-        // println("\n*** RELATIONAL ALGEBRA:\n")
         println("\n*** PHYSICAL PLAN:\n")
         println(Physical(q, meta))
         // println(RelAlg(q))
