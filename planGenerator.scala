@@ -22,7 +22,7 @@ object PlanGenerator{
           val rt = getRefs(right, meta)
           ((merge(lf._1, rt._1)), (lf._2 ::: rt._2))
         case Equals(DerefExp(alias, attName), exp) if isMatching(exp, meta, attName, alias) =>
-          println("Matched"); (Map(attName -> List(expr)), Nil)
+          (Map(attName -> List(expr)), Nil)
         case Equals(exp, DerefExp(alias, attName)) if isMatching(exp, meta, attName, alias) =>
           (Map(attName -> List(Equals(DerefExp(alias, attName), exp))), Nil)
         case Less(DerefExp(alias, attName), exp) if isMatching(exp, meta, attName, alias) =>
@@ -171,22 +171,26 @@ object PlanGenerator{
       val maps = fun(indexParts, map)
       if (maps._1.size == indexParts.size) Some(maps) else None
     }
-    println(cond)
+    val aMeta = {
+      val attributes = meta.attributes.map { case x => (tableAlias + "_" + x._1 -> x._2) }
+      val indexParts = meta.indexParts.map { case x => (tableAlias + "_" + x) }
+      TableMetaData(meta.relName, indexParts, attributes)
+    }
     val (mapping, restLst) = getRefs(cond, meta)
-    println(mapping)
     lookup(meta.indexParts, mapping) match {
       case Some(k) =>
         andify(mapToList(k._2) ::: restLst) match {
-          case None => (IndexLookup(meta, (meta.indexParts zip k._1).toMap, tableAlias), None)
-          case Some(expr) => (IndexLookup(meta, (meta.indexParts zip k._1).toMap, tableAlias), Some(expr))
+          case None => (IndexLookup(aMeta, (aMeta.indexParts zip k._1).toMap, tableAlias), None)
+          case Some(expr) =>
+            (IndexLookup(aMeta, (aMeta.indexParts zip k._1).toMap, tableAlias), Some(expr))
         }
       case None =>
         val types = meta.indexParts.map { case x => (meta.attributes get x).get }
         val (fromLst, fromMap) = getFrom(meta.indexParts, mapping)
         val (toLst, toMap) = getTo(meta.indexParts, fromMap)
         andify(mapToList(toMap) ::: restLst) match {
-          case None => (RangeScan(meta, (types zip fromLst), (types zip toLst), tableAlias), None)
-          case Some(expr) => (RangeScan(meta, (types zip fromLst), (types zip toLst), tableAlias), Some(expr))
+          case None => (RangeScan(aMeta, (types zip fromLst), (types zip toLst), tableAlias), None)
+          case Some(expr) => (RangeScan(aMeta, (types zip fromLst), (types zip toLst), tableAlias), Some(expr))
         }
     }
   }

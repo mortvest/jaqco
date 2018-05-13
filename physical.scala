@@ -1,3 +1,6 @@
+final case class Error(private val message: String = "",
+  private val cause: Throwable = None.orNull) extends Exception(message, cause)
+
 sealed trait Expr
 abstract class BinOp extends Expr {
   def left: Expr
@@ -29,17 +32,9 @@ case class ConstVal(expr: Expr) extends RangeVal
 case class ZeroVal() extends RangeVal
 case class MaxVal() extends RangeVal
 
-final case class Error(private val message: String = "",
-  private val cause: Throwable = None.orNull) extends Exception(message, cause)
-
 case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, DataType])
 
 sealed trait Physical
-
-sealed trait JQuery
-case class JaqcoQuery(source: Physical, selectExpr: Option[Expr], projList: List[Expr]) extends JQuery
-case class EmptyQuery() extends JQuery
-
 case class RangeScan(
   meta: TableMetaData,
   from: List[(DataType, RangeVal)],
@@ -49,13 +44,15 @@ case class RangeScan(
 case class IndexLookup(meta: TableMetaData, map: Map[String, Expr], alias: String) extends Physical
 case class ThetaJoin(tables: List[Physical]) extends Physical
 
+case class JaqcoQuery(source: Physical, selectExpr: Option[Expr], projList: List[Expr])
+
 import com.facebook.presto.sql.parser._
 import com.facebook.presto.sql.tree._
 import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 import PlanGenerator._
 
-object Physical {
+object Physical{
   def findOutsideVar(name: String): Expr = {
     val longPattern   = "LONG_VAR_([A-Za-z0-9]+)".r
     val intPattern    = "INT_VAR_([A-Za-z0-9]+)".r
@@ -155,26 +152,25 @@ object Physical {
 
   def getMeta(meta: Map[String, TableMetaData], name: String) = {
     meta get name match {
-      case None => throw new Error("Relation with that name does not exist")
+      case None => throw new Error(s"""Relation \"${name}\" does not exist""")
       case Some(x) => x
     }
   }
-  def giveAlias(expr: Expr, alias: String): Expr = {
+  // TODO: Add check if column acutally exists
+  def giveAlias(expr: Expr, alias: String, fun: ((String, String) => String)): Expr = {
     expr match {
-      case DerefExp(newAlias, bar) =>
-        if (alias != newAlias) throw new Error(s"Reference to an undefined alias ${newAlias}")
-        else expr
-      case Attribute(name) => DerefExp(alias, name)
-      case Less(left: Expr, right: Expr) => Less(giveAlias(left, alias), giveAlias(right, alias))
-      case Leq(left: Expr, right: Expr) => Leq(giveAlias(left, alias), giveAlias(right, alias))
-      case Greater(left: Expr, right: Expr) => Greater(giveAlias(left, alias), giveAlias(right, alias))
-      case Geq(left: Expr, right: Expr) => Geq(giveAlias(left, alias), giveAlias(right, alias))
-      case Equals(left: Expr, right: Expr) => Equals (giveAlias(left, alias), giveAlias(right, alias))
-      case Plus(left: Expr, right: Expr) => Plus (giveAlias(left, alias), giveAlias(right, alias))
-      case Minus(left: Expr, right: Expr) => Minus(giveAlias(left, alias), giveAlias(right, alias))
-      case And(left: Expr, right: Expr) => And(giveAlias(left, alias), giveAlias(right, alias))
-      case Or(left: Expr, right: Expr) => Or (giveAlias(left, alias), giveAlias(right, alias))
-      case Not(value: Expr) => Not(giveAlias(value, alias))
+      case DerefExp(newAlias, name) => DerefExp(newAlias, fun(newAlias, name))
+      case Attribute(name) => DerefExp(alias, fun(alias, name))
+      case Less(left, right) => Less(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Leq(left, right) => Leq(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Greater(left, right) => Greater(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Geq(left, right) => Geq(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Equals(left, right) => Equals (giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Plus(left, right) => Plus (giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Minus(left, right) => Minus(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case And(left, right) => And(giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Or(left, right) => Or (giveAlias(left, alias, fun), giveAlias(right, alias, fun))
+      case Not(value) => Not(giveAlias(value, alias, fun))
       case x => x
     }
   }
@@ -206,7 +202,6 @@ object Physical {
   def checkAmbiguity(name: String) (tables: Map[String, Map[String, DataType]])  = {
     val map = tables.map{ case (k, m) => (k -> m.contains(name)) }
     val numTable = map.count{ case (k,v) => v }
-    println(map)
     numTable match {
       case 1 => (map.filter{ case (k, v) => v }).head._1
       case n if n > 1 => throw new Error(s"""Column reference \"${name}\" is ambiguous""")
@@ -234,24 +229,6 @@ object Physical {
   }
 
   def apply(query: Query, meta: Map[String, TableMetaData]) = {
-    // def fun(whereCond: Option[Expr], projList: List[Expr], name: String, alias: String) = {
-    //   whereCond match {
-    //     case Some(expr) =>
-    //       val (operator, cond) = translateCond(expr, getMeta(meta, name), alias)
-    //       JaqcoQuery(operator, cond, projList)
-    //     case None =>
-    //       val tMeta = getMeta(meta, name)
-    //       val types = tMeta.indexParts.map { case x => (tMeta.attributes get x).get }
-    //       JaqcoQuery(
-    //         RangeScan(tMeta,
-    //           (types zip tMeta.indexParts.map { case c => ZeroVal() }),
-    //           (types zip tMeta.indexParts.map { case c => MaxVal() }),
-    //           alias),
-    //         None,
-    //         projList
-    //       )
-    //   }
-    // }
     def genPlan(whereCond: Option[Expr], name: String, alias: String) = {
       whereCond match {
         case Some(expr) =>
@@ -288,9 +265,13 @@ object Physical {
     toScala(body.getFrom).get match {
       case x: Table =>
         val name = x.getName.toString
-        val aliasedProj = projList.map { case x => giveAlias(x, name) }
+        val newMap = filterMap(meta, Map(name -> name))
+        // checkAlias(_: String, _:String)(newMap)
+        val aliasedProj = projList.map {
+          case x => giveAlias(x, name, checkAlias(_:String, _:String)(newMap))
+        }
         val cond = whereCond match {
-          case Some(expr) => Some(giveAlias(expr, name))
+          case Some(expr) => Some(giveAlias(expr, name, checkAlias(_:String, _:String)(newMap)))
           case None => None
         }
         val (operation, newCond) = genPlan(cond, name, name)
@@ -298,9 +279,12 @@ object Physical {
       case x: AliasedRelation =>
         val name = getTable(x).getName.toString
         val alias = x.getAlias.toString
-        val aliasedProj = projList.map { case x => giveAlias(x, alias) }
+        val newMap = filterMap(meta, Map(alias -> name))
+        val aliasedProj = projList.map {
+          case x => giveAlias(x, alias, checkAlias(_:String, _:String)(newMap))
+        }
         val cond = whereCond match {
-          case Some(expr) => Some(giveAlias(expr, alias))
+          case Some(expr) => Some(giveAlias(expr, alias, checkAlias(_:String, _:String)(newMap)))
           case None => None
         }
         val (operation, newCond) = genPlan(cond, getTable(x).getName.toString, x.getAlias.toString)

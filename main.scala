@@ -59,8 +59,8 @@ object Main {
   )
   def main(args: Array[String]) = {
     val parser = new SqlParser()
-    val sql = "SELECT * FROM saving A, other_table B WHERE A.user_name = 'Billy' AND account_id = 2 AND A.balance < B.balance"
-    // val sql = "SELECT user_name FROM saving A, other_table B WHERE B.account_id = 2"
+    // val sql = "SELECT * FROM saving A, other_table B WHERE A.user_name = 'Billy' AND account_id = 2 AND A.balance < B.balance"
+    val sql = "SELECT * FROM saving WHERE balance = 2"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)
     query match {
