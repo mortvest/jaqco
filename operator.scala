@@ -1,5 +1,24 @@
-object PlanGenerator{
+object OperatorGenerator {
   def translateCond(cond: Expr, meta: TableMetaData, tableAlias: String): (Physical, Option[Expr]) = {
+    def findPushCond(cond: List[Expr]): (List[Expr], List[Expr]) = {
+      def checkExpr(expr: Expr): Boolean = {
+        expr match {
+          case DerefExp(al, _) => (al == tableAlias)
+          case x:BinOp  => checkExpr(x.left) && checkExpr(x.right)
+          case Not(x) => checkExpr(x)
+          case _ => true
+        }
+      }
+      cond match {
+        case x::xs if checkExpr(x) =>
+          val (lst1, lst2) = findPushCond(xs)
+          (x::lst1, lst2)
+        case x::xs =>
+          val (lst1, lst2) = findPushCond(xs)
+          (lst1, x::lst2)
+        case Nil => (Nil, Nil)
+      }
+    }
     def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
       expr match {
         case x: BinOp => isConstExpr(x.left, meta) && isConstExpr(x.right, meta)
@@ -188,10 +207,10 @@ object PlanGenerator{
         val types = meta.indexParts.map { case x => (meta.attributes get x).get }
         val (fromLst, fromMap) = getFrom(meta.indexParts, mapping)
         val (toLst, toMap) = getTo(meta.indexParts, fromMap)
-        andify(mapToList(toMap) ::: restLst) match {
-          case None => (RangeScan(aMeta, (types zip fromLst), (types zip toLst), tableAlias), None)
-          case Some(expr) => (RangeScan(aMeta, (types zip fromLst), (types zip toLst), tableAlias), Some(expr))
-        }
+        val (includeLst, passLst) = findPushCond(mapToList(toMap) ::: restLst)
+        val includeExpr = andify(includeLst)
+        val passExpr = andify(passLst)
+        (RangeScan(aMeta, (types zip fromLst), (types zip toLst), tableAlias, Nil, includeExpr), passExpr)
     }
   }
 }

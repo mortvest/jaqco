@@ -60,15 +60,18 @@ object Main {
   def main(args: Array[String]) = {
     val parser = new SqlParser()
     // val sql = "SELECT * FROM saving A, other_table B WHERE A.user_name = 'Billy' AND account_id = 2 AND A.balance < B.balance"
-    val sql = "SELECT * FROM saving WHERE balance = 2"
+    val sql = "SELECT * FROM saving A, saving B WHERE A.balance = 2"
+    // val sql = "SELECT * FROM saving S WHERE user_name = 'David' AND balance <= 12"
     // val sql = "CREATE TABLE some_table(val INT, id INT COMMENT 'KEY', name VARCHAR(19))"
     val query = parser.createStatement(sql)
     query match {
       case q: Query  =>
-        println("\n*** QUERY GIVEN:\n")
+        println("\n***QUERY GIVEN:\n")
         println(sql)
-        println("\n*** PHYSICAL PLAN:\n")
-        println(Physical(q, meta))
+        println("\n***LOGICAL QUERY PLAN:\n")
+        println(LogicalPlanGenerator(q))
+        println("\n*** PHYSICAL QUERY PLAN:\n")
+        println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
         // println(RelAlg(q))
         // println("\n*** PHYSICAL PLAN:\n")
         // println(Physical(RelAlg(q), meta))
