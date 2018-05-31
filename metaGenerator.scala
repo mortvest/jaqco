@@ -9,6 +9,7 @@ object MetaGenerator {
     sqlType match {
       case "INT" => SimpleType("int")
       case "LONG" => SimpleType("long")
+      case "BOOL" => SimpleType("bool")
       case stringPattern(size) => StringType(size.toInt)
       case _ => throw new Error(s"Type ${sqlType} is not supported (yet)")
     }

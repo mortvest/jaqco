@@ -27,13 +27,13 @@ object PhysicalPlanGenerator{
         case None =>
           // No where clause - do the range scan from min to max key
           val tableMeta = getMeta(meta, name)
+          // Add aliases to the table meta
           val tMeta = {
             val attributes = tableMeta.attributes.map { case x => (alias + "_" + x._1 -> x._2) }
             val indexParts = tableMeta.indexParts.map { case x => (alias + "_" + x) }
             TableMetaData(tableMeta.relName, indexParts, attributes)
           }
           val types = tMeta.indexParts.map { case x => (tMeta.attributes get x).get }
-          println(types)
           (RangeScan(tMeta,
             (types zip tMeta.indexParts.map { case c => ZeroVal() }),
             (types zip tMeta.indexParts.map { case c => MaxVal() }),
@@ -76,8 +76,11 @@ object PhysicalPlanGenerator{
         val (operation, newCond) = genPlan(cond, name, alias)
         // Add projection to the range scan
         val newOp = operation match {
-          case RangeScan(m, f, t, a, _ , s) => RangeScan(m, f, t, a, projList, s)
-          case x => OnePassProj(projList, x)
+          case RangeScan(m, f, t, a, _ , s) => RangeScan(m, f, t, a, aliasedProj, s)
+          case x => projList match {
+            case Nil => x
+            case y => OnePassProj(aliasedProj, x)
+          }
         }
         // Add filter if needed
         newCond match {
@@ -107,7 +110,10 @@ object PhysicalPlanGenerator{
           case None => None
         }
         val (lst, newCond) = genQList(cond, aliasMap.toList)
-        OnePassProj(aliasedProj, NestedLoopJoin(lst, newCond))
+        projList match {
+          case Nil => NestedLoopJoin(lst, newCond)
+          case _ => OnePassProj(aliasedProj, NestedLoopJoin(lst, newCond))
+        }
       case _ => throw new Error("This from clause is not supported")
     }
   }

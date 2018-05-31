@@ -22,7 +22,9 @@ object OperatorGenerator {
     def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
       expr match {
         case x: BinOp => isConstExpr(x.left, meta) && isConstExpr(x.right, meta)
-        case x: Const => true
+        case _ @ (_: Const | _: OutsideVar) => true
+        // case x: Const => true
+        // case x: OutsideVar => true
         case _ => false
       }
     }

@@ -1,26 +1,34 @@
-// object DDLProcessor {
-//   def apply(meta: Map[String, TableMetaData] ): String = {
-//     def getType(name: String, map: Map[String, String]) = {
-//       (map get name) match {
-//         case Some(tp) => tp
-//         case None => throw new Error("Index part does not have a type")
-//       }
-//     }
-//     def genIndex(relName: String) = {
-//       ""
-//     }
+import CodeGenFunctions._
 
-//     def proc(meta: TableMetaData) = {
-//       val attributes = meta.attributes
-//       val indexParts = meta.indexParts
-//       val name = meta.relName
-//       val keyStructName = name+"_key_type"
-//       val keyStruct = s"\nstruct ${keyStructName} {\n" + indexParts.foldLeft("") ( (acc, ex) => acc + getType(ex, attributes) + " " + ex + ";\n" ) + "}MACRO_PACKED;\n"
-//       val valStructName = name+"_val_type"
-//       val valStruct = s"\nstruct ${valStructName} {\n" +
-//       attributes.foldLeft("") ( (acc, ex) => acc + ex._2 + " " + ex._1 + ";\n" ) + "}MACRO_PACKED;\n"
-//       genIndex(name) + keyStruct + valStruct
-//     }
-//     meta.foldLeft("")( (acc, x) => acc + proc(x._2) )
-//   }
-// }
+object DDLProcessor {
+  def apply(meta: Map[String, TableMetaData], schemaFileName: String, typeDefFileName: String ) = {
+    val schemaCreation = genSchema(meta, "jaqco", typeDefFileName)
+    val typeCreation = genTypeDef(meta)
+    (schemaCreation, typeCreation)
+  }
+
+  def genSchema(metaMap: Map[String, TableMetaData], schemaName: String, typeDefFileName: String) = {
+    def genIndex(indexName: String, typeName: String): String = {
+      s"""my_database->create_index("$indexName", sizeof($typeName), false);"""
+    }
+    s"""#include "$typeDefFileName"
+class ${schemaName}_schema_creator: public reactdb::abstract_schema_creator {
+public:
+    void create_schema(reactdb::hypo_db* my_database) override {
+${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_key_type") + "\n" )}
+    }
+}
+;"""
+  }
+  def genTypeDef(metaMap: Map[String, TableMetaData]): String = {
+    def proc(meta: TableMetaData) = {
+      val attributes = meta.attributes
+      val indexParts = meta.indexParts
+      val name = meta.relName
+      val keyStruct = newKeyStruct(meta, name+"_key_type")
+      val valStruct = newValueStruct(meta, name+"_val_type")
+      keyStruct + "\n" + valStruct
+    }
+    metaMap.foldLeft("")( (acc, x) => acc + proc(x._2) + "\n" ).dropRight(1)
+  }
+}
