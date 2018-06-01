@@ -8,6 +8,7 @@ import com.facebook.presto.sql.parser._
 import com.facebook.presto.sql.tree._
 
 import Preprocessor._
+import Utils._
 case class SimpleRef(counter: Int, fun: (Int => Unit))
 
 // Setting up command line arguments
@@ -26,12 +27,13 @@ object Main{
   val codeExt = ".jsql"
   val ddlExt = ".ddl"
   val filePostfix = "jaqco"
+  val defaultFolder = "jaqco_generated"
 
   def main(args: Array[String]) = {
     val conf = new Conf(args)
     val outDir = (conf.outDir.toOption, conf.folder.toOption) match {
       case (Some(dir), _) => dir
-      case (None, Some(dir)) => dir
+      case (None, Some(dir)) => s"$dir/$defaultFolder"
       case _ => ""
     }
     (conf.codeFiles.toOption, conf.ddlFiles.toOption, conf.folder.toOption) match {
@@ -45,7 +47,11 @@ object Main{
         // println(s"folder is: ${folder}")
         val dirList = ls(File(folder)).toList.map {case x => x.toString}
         val codeFiles = extFilter(dirList, codeExt)
+        if (codeFiles.size < 1)
+          throw new Error(s"""No code files(.jsql) were found in the folder "${folder}"""")
         val ddlFiles = extFilter(dirList, ddlExt)
+        if (codeFiles.size < 1)
+          throw new Error(s"""No DDL files(.ddl) were found in the folder "${folder}"""")
         processFiles(ddlFiles, codeFiles, outDir)
       case _ => throw new Error(s"Command line argument processing failed")
     }

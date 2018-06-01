@@ -6,10 +6,12 @@ object StatementProcessor {
   def apply(query: String, queryNum: Int, retName: String, meta: Map[String, TableMetaData]) = {
     val parser = new SqlParser()
     parser.createStatement(query) match {
-      case q: Query  =>
-        CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum, query)
-      // TODO INSERT
-      case q: Insert => "INSERT STATEMENT"
+      case q: Query => retName match {
+        case "" => throw new Error(s"SELECT statement needs an output variable")
+        case retName =>
+          CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum, query)
+      }
+      case q: Insert => InsertStatement(q, meta, queryNum, query)
       case _ => throw new Error(s"Statement is not supported")
     }
   }

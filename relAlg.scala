@@ -44,6 +44,28 @@ import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 
 object LogicalPlanGenerator{
+  def apply(query: Query) = {
+    val body = query.getQueryBody.asInstanceOf[QuerySpecification]
+    val where = toScala(body.getWhere)
+    val from = toScala(body.getFrom).get match {
+      case x: Join => x.getType.toString match {
+        case "IMPLICIT" => parseJoin(x)
+        case joinType => throw new Error(s"$joinType JOIN is not supported")
+      }
+      case x => parseTable(x)
+    }
+    val whereCond =
+      where match {
+        case Some(whr) => Selection(parseExp(whr), from)
+        case None => from
+      }
+    val columns = body.getSelect.getSelectItems.asScala.toList
+    columns match {
+      case List(c: AllColumns) => whereCond
+      case c =>
+        Projection(c.map({case x => parseExp(x.asInstanceOf[SingleColumn].getExpression)}),whereCond)
+    }
+  }
   def findOutsideVar(name: String): Expr = {
     val longPattern   = "LONG_VAR_([A-Za-z0-9_]+)".r
     val intPattern    = "INT_VAR_([A-Za-z0-9_]+)".r
@@ -115,29 +137,6 @@ object LogicalPlanGenerator{
       case (left: Relation, right: Join) => Cross(parseTable(left), parseJoin(right))
       case (left: Relation, right: Relation) => Cross(parseTable(left), parseTable(right))
       case _ => throw new Error(s"This type of join is not supported")
-    }
-  }
-
-  def apply(query: Query) = {
-    val body = query.getQueryBody.asInstanceOf[QuerySpecification]
-    val where = toScala(body.getWhere)
-    val from = toScala(body.getFrom).get match {
-      case x: Join => x.getType.toString match {
-        case "IMPLICIT" => parseJoin(x)
-        case joinType => throw new Error(s"$joinType JOIN is not supported")
-      }
-      case x => parseTable(x)
-    }
-    val whereCond =
-      where match {
-        case Some(whr) => Selection(parseExp(whr), from)
-        case None => from
-      }
-    val columns = body.getSelect.getSelectItems.asScala.toList
-    columns match {
-      case List(c: AllColumns) => whereCond
-      case c =>
-        Projection(c.map({case x => parseExp(x.asInstanceOf[SingleColumn].getExpression)}),whereCond)
     }
   }
 }
