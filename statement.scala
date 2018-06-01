@@ -7,15 +7,7 @@ object StatementProcessor {
     val parser = new SqlParser()
     parser.createStatement(query) match {
       case q: Query  =>
-        // println("\n***QUERY GIVEN:\n")
-        // println(sql)
-        // println("\n***LOGICAL QUERY PLAN:\n")
-        // println(LogicalPlanGenerator(q))
-        // println("\n*** PHYSICAL QUERY PLAN:\n")
-        // println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
-        // println("\n*** GENERATED CODE:\n")
-        // println(CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta),retName, queryName))
-        CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum)
+        CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum, query)
       // TODO INSERT
       case q: Insert => "INSERT STATEMENT"
       case _ => throw new Error(s"Statement is not supported")
