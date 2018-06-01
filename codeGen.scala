@@ -104,7 +104,6 @@ ${loop(joinCond(varCpy))}
       }
       def rec(lst: List[Expr], map: Map[String, Int]): List[(String, DataType, String, String, String)] = {
         def proc(name: String, expr: Expr, lst: List[Expr]) = {
-          println(meta.attributes)
           val value = condTrans(expr, Map("" -> RelationMetaData(meta.attributes, "", "")), structName)
           // val value = condTrans(expr, Map("" -> meta), structName)
           typeLookup(expr, Map("" -> meta)) match {
@@ -124,7 +123,6 @@ ${loop(joinCond(varCpy))}
           case Nil => List[(String, DataType, String, String, String)]()
         }
       }
-      println(meta)
       rec(lst, Map[String, Int]())
     }
     val oldListName = meta.name

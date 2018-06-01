@@ -26,14 +26,15 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 object Main{
   val codeExt = ".jsql"
   val ddlExt = ".ddl"
+  val hostLangExt = ".cc"
   val filePostfix = "jaqco"
-  val defaultFolder = "jaqco_generated"
+  val defaultDir = "jaqco_generated"
 
   def main(args: Array[String]) = {
     val conf = new Conf(args)
     val outDir = (conf.outDir.toOption, conf.folder.toOption) match {
       case (Some(dir), _) => dir
-      case (None, Some(dir)) => s"$dir/$defaultFolder"
+      case (None, Some(dir)) => s"$dir/$defaultDir"
       case _ => ""
     }
     (conf.codeFiles.toOption, conf.ddlFiles.toOption, conf.folder.toOption) match {
@@ -59,6 +60,7 @@ object Main{
   def processFiles(ddlFiles: List[String], codeFiles: List[String], outDir: String) = {
     // println(s"Code files: ${codeFiles}")
     // println(s"DDL files: ${ddlFiles}")
+    File(outDir).createIfNotExists(true).clear()
     val ddlCode = ddlFiles.map { case x => File(x).contentAsString }
     val ddlList =
       ddlCode.foldLeft(List[String]()) ((acc, x) => Preprocessor.processDDL(x) ::: acc)
@@ -70,9 +72,12 @@ object Main{
     val meta = st.toMap
     val (scheCrea, typeDef) =
       DDLProcessor(meta, s"schema_creator_$filePostfix.h", s"type_definition_$filePostfix.h")
-    processCodeFiles(codeFiles, meta)
+    createFile(outDir, "jaqco_schema_creator.h", scheCrea)
+    createFile(outDir, "jaqco.h", typeDef)
+    processCodeFiles(codeFiles, meta, outDir)
   }
-  def processCodeFiles(fileList: List[String], meta: Map[String, TableMetaData]) = {
+  def processCodeFiles(fileList: List[String], meta: Map[String, TableMetaData], outDir: String) = {
+    // println(fileList)
     var queryCounter = 0
     def processCodeFile(fileName: String, meta: Map[String, TableMetaData], ref: SimpleRef) = {
       val ref = SimpleRef(queryCounter, (queryCounter = _))
@@ -81,7 +86,8 @@ object Main{
     }
     fileList.foreach { case x =>
       val ref = SimpleRef(queryCounter, (queryCounter = _))
-      println(processCodeFile(x, meta, ref))
+      val fileContents = (processCodeFile(x, meta, ref))
+      createFile(outDir, findFileName(x, codeExt) + hostLangExt, fileContents)
     }
   }
   def checkExt(fileName: String, ext: String) = {
@@ -100,10 +106,18 @@ object Main{
     MetaGenerator(query.asInstanceOf[CreateTable])
   }
   def createFile(dirName: String, fileName: String, content: String) = {
+    println(s"$dirName/$fileName")
     (s"$dirName/$fileName")
       .toFile
       .createIfNotExists()
       .overwrite(content)
+  }
+  def findFileName(dest: String, ext: String): String = {
+    val pattern = s"(?s).*/(.+)\\${ext}".r
+    dest match {
+      case pattern(x) => x
+      case _ => throw new Error(s"File must have extension ${ext}")
+    }
   }
 }
 //   def main(args: Array[String]) = {
