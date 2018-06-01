@@ -106,11 +106,9 @@ object Main{
     MetaGenerator(query.asInstanceOf[CreateTable])
   }
   def createFile(dirName: String, fileName: String, content: String) = {
-    println(s"$dirName/$fileName")
-    (s"$dirName/$fileName")
-      .toFile
-      .createIfNotExists()
-      .overwrite(content)
+    val newName = s"$dirName/$fileName"
+    println(s"File generated: $newName")
+    newName.toFile.createIfNotExists().overwrite(content)
   }
   def findFileName(dest: String, ext: String): String = {
     val pattern = s"(?s).*/(.+)\\${ext}".r

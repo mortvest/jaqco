@@ -1,0 +1,14 @@
+#include <stdexcept>
+#include "insert_test.h"
+
+using namespace jaqco;
+using namespace reactdb;
+
+interpreter_t insert_test::map(const jaqco_type& customer_name) {
+  return map_name_to_logical_partition();
+}
+
+void insert_test::run() {
+  <q*account> SELECT * FROM test_relation WHERE balance < 1780 <*q>
+  set_result(1);
+}
