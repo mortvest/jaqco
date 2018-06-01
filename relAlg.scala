@@ -70,7 +70,7 @@ object LogicalPlanGenerator{
     val longPattern   = "LONG_VAR_([A-Za-z0-9_]+)".r
     val intPattern    = "INT_VAR_([A-Za-z0-9_]+)".r
     val charPattern   = "CHAR_VAR_([A-Za-z0-9_]+)".r
-    val stringPattern = "VARCHAR([0-9]+)_VAR_([A-Za-z0-9_]+)".r
+    val stringPattern = "CHAR([0-9][1-9]*)_VAR_([A-Za-z0-9_]+)".r
     name match {
       case longPattern(name) => OutsideVar(name, SimpleType("long"))
       case intPattern(name) => OutsideVar(name, SimpleType("int"))

@@ -5,7 +5,7 @@ import scala.collection.JavaConverters._
 
 object MetaGenerator {
   def translateType(sqlType: String) = {
-    val stringPattern = "VARCHAR\\(([0-9]+)\\)".r
+    val stringPattern = "CHAR\\(([1-9][0-9]*)\\)".r
     sqlType match {
       case "INT" => SimpleType("int")
       case "LONG" => SimpleType("long")
