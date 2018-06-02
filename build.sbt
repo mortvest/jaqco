@@ -2,6 +2,8 @@ name := "jaqco"
 
 version := "0.1"
 
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5"
+
 libraryDependencies += "com.facebook.presto" % "presto-parser" % "0.198"
 
 libraryDependencies += "com.github.pathikrit" %% "better-files" % "3.5.0"

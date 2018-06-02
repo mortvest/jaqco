@@ -14,8 +14,9 @@ case class SimpleRef(counter: Int, fun: (Int => Unit))
 // Setting up command line arguments
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val codeFiles = opt[List[String]](descr = "List of code files with embedded SQL(.jsql)")
-  val ddlFile = opt[String](descr = "DDL file(.ddl), name of the files will be the name of the namespace")
+  val ddlFile = opt[String](descr = "DDL file(.ddl), name of the file will be the name of the namespace")
   val outDir = opt[String](descr = "Destination folder", short = 'o')
+  val forceClean = toggle("force_clean", descrYes = "Clean the output directory before file generation")
   val folder = opt[String](descr = "Folder with .ddl and .jsql files")
   val debug = toggle("debug", short = 'g')
   requireOne(codeFiles, folder)
@@ -32,17 +33,29 @@ object Main{
 
   def main(args: Array[String]) = {
     val conf = new Conf(args)
+    // val debug: Boolean = conf.debug.toOption match {
+    //   case None => false
+    //   case Some(x) => x
+    // }
+    // val forceClean = conf.forceClean.toOption match {
+    //   case None => false
+    //   case Some(x) => x
+    // }
     val outDir = (conf.outDir.toOption, conf.folder.toOption) match {
       case (Some(dir), _) => dir
       case (None, Some(dir)) => s"$dir/$defaultDir"
-      case _ => ""
+      case _ => s"$defaultDir"
     }
+    val forceClean = getToggleOption(conf.forceClean)
+    val debug = getToggleOption(conf.debug)
+    println(s"Force clean: $forceClean")
+    println(s"Debug: $debug")
     (conf.codeFiles.toOption, conf.ddlFile.toOption, conf.folder.toOption) match {
       case (Some(codeFiles), Some(ddlFile), None) =>
         checkDuplicates(codeFiles, "File")
         for (fileName <- codeFiles) {checkExt(fileName, codeExt)}
         checkExt(ddlFile, ddlExt)
-        processFiles(ddlFile, codeFiles, outDir)
+        processFiles(ddlFile, codeFiles, outDir, forceClean)
       case (None, None, Some(folder)) =>
         // println(s"folder is: ${folder}")
         val dirList = ls(File(folder)).toList.map {case x => x.toString}
@@ -54,14 +67,19 @@ object Main{
           throw new Error(s"""DDL file(.ddl) was not found in the folder "${folder}"""")
         else if (ddlFiles.size > 1)
           throw new Error(s"""Multiple DDL files (.ddl) were not found in the folder "${folder}"""")
-        processFiles(ddlFiles.head, codeFiles, outDir)
+        codeFiles.foreach{ case x => println(s"Code file: $x") }
+        println(s"DDL file: $ddlFiles.head")
+        processFiles(ddlFiles.head, codeFiles, outDir, forceClean)
       case _ => throw new Error(s"Command line argument processing failed")
     }
   }
-  def processFiles(ddlFile: String, codeFiles: List[String], outDir: String) = {
+  def processFiles(ddlFile: String, codeFiles: List[String], outDir: String, force: Boolean) = {
     // println(s"Code files: ${codeFiles}")
     // println(s"DDL file: ${ddlFile}")
-    File(outDir).createIfNotExists(true).clear()
+    if (force)
+      File(outDir).createIfNotExists(true).clear()
+    else
+      File(outDir).createIfNotExists(true)
     val ddlCode = File(ddlFile).contentAsString
     val ddlList = Preprocessor.processDDL(ddlCode)
     val st = ddlList.map{ case x => createMeta(x) }
@@ -109,14 +127,20 @@ object Main{
   }
   def createFile(dirName: String, fileName: String, content: String) = {
     val newName = s"$dirName/$fileName"
-    println(s"File generated: $newName")
     newName.toFile.createIfNotExists().overwrite(content)
+    println(s"File generated: $newName")
   }
   def findFileName(dest: String, ext: String): String = {
     val pattern = s"(?s).*/(.+)\\${ext}".r
     dest match {
       case pattern(x) => x
       case _ => throw new Error(s"File must have extension ${ext}")
+    }
+  }
+  def getToggleOption(x: ScallopOption[Boolean]) = {
+    x.toOption match {
+      case None => false
+      case Some(x) => x
     }
   }
 }

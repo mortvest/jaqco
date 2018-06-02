@@ -42,7 +42,7 @@ ${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_k
       keyStruct + "\n" + valStruct
     }
     s"""namespace $namespace {
-metaMap.foldLeft("")( (acc, x) => acc + proc(x._2) + "\n" ).dropRight(1)
+${metaMap.foldLeft("")( (acc, x) => acc + proc(x._2) + "\n" ).dropRight(1)}
 }"""
   }
 }
