@@ -1,4 +1,4 @@
-case class TableMetaData(relName: String, indexParts: List[String], attributes: Map[String, DataType])
+case class TableMetaData(relName: String, indexParts: Map[String, DataType], attributes: Map[String, DataType])
 
 sealed trait Physical
 case class RangeScan(
@@ -30,16 +30,18 @@ object PhysicalPlanGenerator{
           // Add aliases to the table meta
           val tMeta = {
             val attributes = tableMeta.attributes.map { case x => (alias + "_" + x._1 -> x._2) }
-            val indexParts = tableMeta.indexParts.map { case x => (alias + "_" + x) }
+            // val indexParts = tableMeta.indexParts.map { case x => (alias + "_" + x) }
+            val indexParts = tableMeta.indexParts
             TableMetaData(tableMeta.relName, indexParts, attributes)
           }
-          val types = tMeta.indexParts.map { case x => (tMeta.attributes get x).get }
+          // val types = tMeta.indexParts.map { case x => (tMeta.attributes get x).get }
+          val types = tMeta.indexParts.map { case x => x._2 }.toList
           (RangeScan(tMeta,
             (types zip tMeta.indexParts.map { case c => ZeroVal() }),
             (types zip tMeta.indexParts.map { case c => MaxVal() }),
             alias,
             Nil,
-            None,
+            None
           ), None)
       }
     }

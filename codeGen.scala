@@ -149,7 +149,7 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, it
   def indexLookup(meta: TableMetaData, map: Map[String, Expr], ref: Ref) = {
     def genAssign(name: String, value: String, new_struct: String) = {
       val dest = s"${new_struct}.${name}"
-        (meta.attributes get name).get match {
+        (meta.indexParts get name).get match {
           case SimpleType(_) => s"${dest} = ${value};"
           case StringType(_) => s"std::strcpy($dest, ${value});"
         }
@@ -157,7 +157,7 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, it
     val relName  = s"${meta.relName}"
     val listName = s"${newTag(ref)}_${relName}"
     val keyStruct = s"${listName}_key"
-    val keyType = s"${listName}_key_type"
+    val keyType = s"${relName}_key_type"
     val valueString = s"${listName}_value_string"
     val keyStructCreate = map.foldLeft("") ( (acc, ex) =>
       acc + genAssign(ex._1 ,condTrans(ex._2, Map("" -> RelationMetaData(Map(),"","")), ""), keyStruct) + "\n")
@@ -166,7 +166,6 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, it
     val index = s"${listName}_index"
     val code = s"""
 //index lookup
-${newKeyStruct(meta, keyType)}
 ${newValueStruct(meta, valType)}
 auto $index = get_index("$relName");
 std::string ${valueString};

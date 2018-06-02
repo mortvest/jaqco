@@ -24,16 +24,17 @@ object MetaGenerator {
       case _ => throw new Error(s"DDL meta creation failed")
     }
   }
-  def findIndexParts(lst: List[TableElement]): List[String] = {
+  def findIndexParts(lst: List[TableElement]): List[(String, DataType)] = {
     lst match {
       case Nil => Nil
       case (x:ColumnDefinition)::xs =>
         val name = x.getName.getValue
+        val valType = x.getType.toString
         toScala(x.getComment) match {
           case None => findIndexParts(xs)
           case Some(comment) =>
             comment.capitalize match {
-              case "KEY" => name :: findIndexParts(xs)
+              case "KEY" => (name -> translateType(valType)) :: findIndexParts(xs)
               case _ => findIndexParts(xs)
             }
         }
@@ -45,7 +46,7 @@ object MetaGenerator {
     val elements = stmt.getElements.asScala.toList
     findIndexParts(elements) match {
       case Nil => throw new Error(s"No key given in the table: $name")
-      case x => (name, TableMetaData(name, x, genAttributes(elements)))
+      case x => (name, TableMetaData(name, x.toMap, genAttributes(elements)))
     }
   }
 }

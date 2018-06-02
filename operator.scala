@@ -194,21 +194,24 @@ object OperatorGenerator {
     }
     val aMeta = {
       val attributes = meta.attributes.map { case x => (tableAlias + "_" + x._1 -> x._2) }
-      val indexParts = meta.indexParts.map { case x => (tableAlias + "_" + x) }
-      TableMetaData(meta.relName, indexParts, attributes)
+      // val indexParts = meta.indexParts.map { case x => (tableAlias + "_" + x) }
+      val indexParts = meta.indexParts
+      TableMetaData(meta.relName, meta.indexParts, attributes)
     }
     val (mapping, restLst) = getRefs(cond, meta)
-    lookup(meta.indexParts, mapping) match {
+    val indexPartList = meta.indexParts.map{ case x => x._1}.toList
+    lookup(indexPartList, mapping) match {
       case Some(k) =>
         andify(mapToList(k._2) ::: restLst) match {
-          case None => (IndexLookup(aMeta, (aMeta.indexParts zip k._1).toMap, tableAlias), None)
+          case None => (IndexLookup(aMeta, (indexPartList zip k._1).toMap, tableAlias), None)
           case Some(expr) =>
-            (IndexLookup(aMeta, (aMeta.indexParts zip k._1).toMap, tableAlias), Some(expr))
+            (IndexLookup(aMeta, (indexPartList zip k._1).toMap, tableAlias), Some(expr))
         }
       case None =>
-        val types = meta.indexParts.map { case x => (meta.attributes get x).get }
-        val (fromLst, fromMap) = getFrom(meta.indexParts, mapping)
-        val (toLst, toMap) = getTo(meta.indexParts, fromMap)
+        // val types = meta.indexParts.map { case x => (meta.attributes get x).get }
+        val types = meta.indexParts.map { case x => x._2 }.toList
+        val (fromLst, fromMap) = getFrom(indexPartList, mapping)
+        val (toLst, toMap) = getTo(indexPartList, fromMap)
         val (includeLst, passLst) = findPushCond(mapToList(toMap) ::: restLst)
         val includeExpr = andify(includeLst)
         val passExpr = andify(passLst)

@@ -33,6 +33,13 @@ ${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_k
 }"""
   }
   def genTypeDef(metaMap: Map[String, TableMetaData], namespace: String): String = {
+    def newKeyStruct(meta: TableMetaData, valType: String) = {
+      val newMap = meta.attributes.filter { case x => meta.indexParts.contains(x._1) }
+      val header = s"struct ${valType} {\n"
+      val fields = newMap.foldLeft("") ((acc, x) => acc + "  " + structElem(x) + "\n")
+      val endianConvertion = ""
+      header + fields + endianConvertion + "\n};"
+    }
     def proc(meta: TableMetaData) = {
       val attributes = meta.attributes
       val indexParts = meta.indexParts

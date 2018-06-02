@@ -70,7 +70,7 @@ object InsertStatement {
     val valInit = map.foldLeft("") ( (acc, x) =>
       acc + condTrans(x._2, Map("" -> RelationMetaData(Map(), "","")), "") + ", ")
     s"""auto ${indexName} = get_index("${meta.relName}");
-${keyType} ${keyName} {${keyInit(meta.indexParts).dropRight(2)}};
+${keyType} ${keyName} {${keyInit(meta.indexParts.map{ case x => x._1 }.toList).dropRight(2)}};
 ${valType} ${valName} {${valInit.dropRight(2)}};
 ${indexName}->insert(utility::encode_safe(${keyName}),
 utility::encode_safe(${valName}));"""

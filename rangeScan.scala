@@ -139,7 +139,8 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, ne
     val toString = s"${listName}_to_string"
     val fromKey = s"${listName}_from_key"
     val toKey = s"${listName}_to_key"
-    val keyType = s"${listName}_key_type"
+    // val keyType = s"${listName}_key_type"
+    val keyType = s"${meta.relName}_key_type"
     val valType = s"${listName}_val_type"
     val iterName = "i"
     val relMeta = RelationMetaData(meta.attributes, iterName, listName + "_val_type")
@@ -153,8 +154,14 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, ne
       case Some(expr) => pushOpFilter(RelationMetaData(meta.attributes, iterName, valType), expr, iterName, push, projectCode)
       case None => (projectCode, "", "")
     }
+    val toKeyAddition = if (to.exists{ case x => !x._1.isInstanceOf[MaxVal] })
+      s"""
+if (${toString}[${toString}.size()-1] != (char)std::numeric_limits<unsigned char>::max()) {
+  ${toString}[${toString}.size()-1]++;
+}"""
+      else ""
+
     val code =s"""
-${newKeyStruct(meta, keyType)}
 ${newValueStruct(meta, valType)}
 ${projectStruct}
 class ${pushType}: public reactdb::abstract_push_op {
@@ -173,11 +180,12 @@ auto ${index} = get_index("${relName}");
 ${pushType} ${push};
 ${filterVarCpy}
 ${keyType} ${fromKey}{};
-${((from zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, fromKey, y) + "\n"}) }
+${((from zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, fromKey, y._1) + "\n"}) }
 ${keyType} ${toKey}{};
-${((to zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, toKey, y) + "\n"}) }
+${((to zip meta.indexParts).foldLeft(""){ case (acc, (x, y)) => acc + conv(x._2, x._1, meta, toKey, y._1) + "\n"}) }
 const auto& ${fromString} = reactdb::utility::encode_safe(${fromKey});
-const auto& ${toString} = reactdb::utility::encode_safe(${toKey});
+auto ${toString} = reactdb::utility::encode_safe(${toKey});
+${toKeyAddition}
 ${index}->range_scan(${fromString}, &${toString}, ${push});
 std::vector<${projMeta.typeName}> ${listName} = ${push}.vec;
 

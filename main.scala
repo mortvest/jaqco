@@ -16,8 +16,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val codeFiles = opt[List[String]](descr = "List of code files with embedded SQL(.jsql)")
   val ddlFile = opt[String](descr = "DDL file(.ddl), name of the file will be the name of the namespace")
   val outDir = opt[String](descr = "Destination folder", short = 'o')
+  val folder = opt[String](descr = "Folder with .ddl and .jsql files", short = 'f')
   val forceClean = toggle("force_clean", descrYes = "Clean the output directory before file generation")
-  val folder = opt[String](descr = "Folder with .ddl and .jsql files")
   val debug = toggle("debug", short = 'g')
   requireOne(codeFiles, folder)
   codependent(codeFiles, ddlFile)
@@ -91,6 +91,7 @@ object Main{
     val namespace = findFileName(ddlFile, ddlExt)
     val (scheCrea, typeDef) =
       DDLProcessor(meta, s"schema_creator_$filePostfix.h", s"type_definition_$filePostfix.h", namespace)
+    println(typeDef)
     createFile(outDir, "jaqco_schema_creator.h", scheCrea)
     createFile(outDir, "jaqco.h", typeDef)
     processCodeFiles(codeFiles, meta, outDir)
@@ -158,7 +159,7 @@ object Main{
 //     // )
 //     val meta = Map[String, TableMetaData](
 //       "test_relation" ->
-//         TableMetaData("test_relation", List("account_id"),
+//         TableMetaData("test_relation", Map("account_id" -> SimpleType("long")),
 //           Map("account_id" -> SimpleType("long"),
 //             "user_name" -> StringType(255),
 //             "balance" -> SimpleType("long")
@@ -174,9 +175,7 @@ object Main{
 //         println("\n*** PHYSICAL QUERY PLAN:\n")
 //         println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
 //         println("\n*** GENERATED CODE:\n")
-//         println(CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta),retName, queryNum))
-//       // TODO INSERT
-//       case q: Insert => println("INSERT STATEMENT")
+//         println(CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta),retName, queryNum, sql))
 //       case _ => throw new Error(s"Statement is not supported")
 //     }
 //   }
