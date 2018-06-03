@@ -14,39 +14,40 @@ object MetaGenerator {
       case _ => throw new Error(s"Type ${sqlType} is not supported (yet)")
     }
   }
-  def genAttributes(lst: List[TableElement]): (Map[String, DataType]) = {
-    lst match {
-      case Nil => Map[String, DataType]()
-      case (x:ColumnDefinition)::xs =>
-        val name = x.getName.getValue()
-        val valType = x.getType.toString
-        genAttributes(xs) + (name -> translateType(valType))
-      case _ => throw new Error(s"DDL meta creation failed")
-    }
-  }
-  def findIndexParts(lst: List[TableElement]): List[(String, DataType)] = {
+  def genAttributes(lst: List[TableElement]): (List[(String, DataType)]) = {
     lst match {
       case Nil => Nil
       case (x:ColumnDefinition)::xs =>
-        val name = x.getName.getValue
+        val name = x.getName.getValue()
         val valType = x.getType.toString
-        toScala(x.getComment) match {
-          case None => findIndexParts(xs)
-          case Some(comment) =>
-            comment.capitalize match {
-              case "KEY" => (name -> translateType(valType)) :: findIndexParts(xs)
-              case _ => findIndexParts(xs)
-            }
-        }
+        (name -> translateType(valType)) :: genAttributes(xs)
       case _ => throw new Error(s"DDL meta creation failed")
+    }
+  }
+  def findAttName(keyName: String, map: Map[String, DataType]) = {
+    map get keyName match {
+      case None => throw new Error(s"""Key part "${keyName}" is not an attribute""")
+      case Some(attName) => attName
     }
   }
   def apply(stmt: CreateTable): (String, TableMetaData) = {
     val name = stmt.getName.toString
-    val elements = stmt.getElements.asScala.toList
-    findIndexParts(elements) match {
+    val attributes = genAttributes(stmt.getElements.asScala.toList).toMap
+    val fullPattern = " *KEY *= *(.+)".r
+    val singlePattern = "([A-Za-z_-]+)".r
+    val keyParts = stmt.getComment.asScala match {
+      case None => Nil
+      case Some(content) =>
+        content match {
+        case fullPattern(part) =>
+            singlePattern.findAllIn(part).toList.map{ case x =>
+              (x -> findAttName(x, attributes)) }.toList
+        case _ => throw new Error(s"Key pattern ${content} is unrecognizable")
+      }
+    }
+    keyParts match {
       case Nil => throw new Error(s"No key given in the table: $name")
-      case x => (name, TableMetaData(name, x.toMap, genAttributes(elements)))
+      case x => (name, TableMetaData(name, x.toMap, attributes))
     }
   }
 }

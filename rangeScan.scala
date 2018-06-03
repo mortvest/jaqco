@@ -115,7 +115,8 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, ne
           case ConstVal(expr) =>
             val exp = condTrans(expr, Map("" -> RelationMetaData(meta.attributes, "", "")), "")
             s"$curName = $exp;"
-          case ZeroVal() => s"$curName = std::numeric_limits<${typeName}>::min();"
+          // case ZeroVal() => s"$curName = std::numeric_limits<${typeName}>::min();"
+          case ZeroVal() => s""
           case MaxVal()  => s"$curName = std::numeric_limits<${typeName}>::max();"
         }
         case StringType(len) => value match {

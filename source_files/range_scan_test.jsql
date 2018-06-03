@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include "insert_test.h"
+#include "type_def.h"
 
 using namespace jaqco;
 using namespace reactdb;
@@ -9,6 +10,9 @@ interpreter_t insert_test::map(const jaqco_type& customer_name) {
 }
 
 void insert_test::run() {
-  <q*account> SELECT * FROM test_relation WHERE balance < 1780 <*q>
+  <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (250, 'Foma', 874) <*q>
+  <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (40000, 'David', 324) <*q>
+  <q*account> SELECT * FROM test_relation WHERE account_id <= 250 <*q>
+  std::cout << query8_0_test_relation[0].test_relation_account_id << "\n";
   set_result(1);
 }
