@@ -3,7 +3,7 @@ import com.facebook.presto.sql.tree._
 import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 import LogicalPlanGenerator._
-import CodeGenFunctions._
+import CodeGenUtils._
 import PhysicalPlanGenerator._
 import Utils._
 
@@ -54,6 +54,7 @@ object InsertStatement {
     taggify(codeGen(zipped.toMap, meta, queryNum), query)
   }
   def codeGen(map: Map[String, Expr], meta: TableMetaData, qNum: Int) = {
+    println(meta.indexParts)
     def keyInit(lst: List[String]): String = {
       lst match {
         case x::xs =>

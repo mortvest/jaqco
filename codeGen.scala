@@ -3,7 +3,7 @@ case class RelationMetaData(attributes: Map[String, DataType], name: String, typ
 case class Ref(relNum: Int, counter: Int, fun: (Int => Unit))
 
 import RangeScanGen._
-import CodeGenFunctions._
+import CodeGenUtils._
 
 object CodeGeneration {
   def apply(physical: Physical, varName: String, queryNum: Int, originalQuery: String) = {

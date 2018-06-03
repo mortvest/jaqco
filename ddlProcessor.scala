@@ -1,4 +1,4 @@
-import CodeGenFunctions._
+import CodeGenUtils._
 
 object DDLProcessor {
   def apply(
@@ -21,7 +21,9 @@ object DDLProcessor {
       def genIndex(indexName: String, typeName: String): String = {
         s"""my_database->create_index("$indexName", sizeof($typeName), false);"""
       }
-      val code = s"""#include "$typeDefFileName"
+      val code = s"""#ifndef JAQCO_SCHEMA_H
+#define JAQCO_SCHEMA_H
+#include "$typeDefFileName"
 namespace $namespace {
   class ${schemaName}_schema_creator: public reactdb::abstract_schema_creator {
   public:
@@ -30,7 +32,9 @@ ${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_k
       }
   }
   ;
-}"""
+}
+#endif
+"""
     taggify(code, "")
   }
   def genTypeDef(metaMap: Map[String, TableMetaData], namespace: String): String = {
@@ -112,9 +116,12 @@ ${map.foldLeft("")((acc, x) => acc + singleAttrib(x._1, x._2))}
       val valStruct = newValueStruct(meta, name+"_val_type")
       keyStruct + "\n" + valStruct
     }
-    val code = s"""namespace $namespace {
+    val code = s"""#ifndef JAQCO_TYPE_DEF_H
+#define JAQCO_TYPE_DEF_H
+namespace $namespace {
 ${metaMap.foldLeft("")( (acc, x) => acc + proc(x._2) + "\n" ).dropRight(1)}
-}"""
+}
+#endif"""
     taggify(code, "")
   }
 }

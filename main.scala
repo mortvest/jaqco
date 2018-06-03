@@ -90,10 +90,11 @@ object Main{
     val meta = st.toMap
     val namespace = findFileName(ddlFile, ddlExt)
     val (scheCrea, typeDef) =
-      DDLProcessor(meta, s"schema_creator_$filePostfix.h", s"type_definition_$filePostfix.h", namespace)
+      DDLProcessor(meta, s"${filePostfix}_schema_creator.h",
+        s"${filePostfix}_type_definition.h", namespace)
     println(typeDef)
-    createFile(outDir, "jaqco_schema_creator.h", scheCrea)
-    createFile(outDir, "jaqco.h", typeDef)
+    createFile(outDir, s"${filePostfix}_schema_creator.h", scheCrea)
+    createFile(outDir, s"${filePostfix}_type_definition.h", typeDef)
     processCodeFiles(codeFiles, meta, outDir)
   }
   def processCodeFiles(fileList: List[String], meta: Map[String, TableMetaData], outDir: String) = {

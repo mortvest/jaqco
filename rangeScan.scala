@@ -1,4 +1,4 @@
-import CodeGenFunctions._
+import CodeGenUtils._
 
 object RangeScanGen {
   def rangeScan(
