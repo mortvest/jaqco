@@ -40,9 +40,8 @@ ${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_k
   def genTypeDef(metaMap: Map[String, TableMetaData], namespace: String): String = {
     def swap(attName: String, attType: SimpleType) = {
       attType.typeName match {
-          case "short" => s"__builtin_bswap16($attName)"
-          case "int" => s"__builtin_bswap32($attName)"
-          case "long" => s"__builtin_bswap64($attName)"
+          case "std::int32_t" => s"__builtin_bswap32($attName)"
+          case "std::int64_t" => s"__builtin_bswap64($attName)"
           case _ => throw new Error(s"Not supported yet")
         }
     }

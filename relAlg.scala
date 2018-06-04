@@ -72,8 +72,8 @@ object LogicalPlanGenerator{
     val charPattern   = "CHAR_VAR_([A-Za-z0-9_]+)".r
     val stringPattern = "CHAR([0-9][1-9]*)_VAR_([A-Za-z0-9_]+)".r
     name match {
-      case longPattern(name) => OutsideVar(name, SimpleType("long"))
-      case intPattern(name) => OutsideVar(name, SimpleType("int"))
+      case longPattern(name) => OutsideVar(name, SimpleType("std::int64_t"))
+      case intPattern(name) => OutsideVar(name, SimpleType("std::int32_t"))
       case charPattern(name) => OutsideVar(name, SimpleType("char"))
       case stringPattern(size, name) => OutsideVar(name, StringType(size.toInt))
       case name => Attribute(name)
@@ -115,7 +115,7 @@ object LogicalPlanGenerator{
         }
       case x: NotExpression => Not(parseExp(x.getValue))
       case x: Identifier => findOutsideVar(x.getValue.toString)
-      case x: LongLiteral => Const(x.getValue.toString, SimpleType("long"))
+      case x: LongLiteral => Const(x.getValue.toString, SimpleType("std::int64_t"))
       case x: StringLiteral =>
         val str = x.getValue.toString
         Const(str, StringType(str.size))
