@@ -47,6 +47,7 @@ object CodeGenUtils {
       case x: RangeOp => checkComparison(x.left, x.right)
       case Equals(left, right) => checkComparison(left, right)
       case x: BinOp => checkBin(x.left, x.right)
+      case UnaryMinus(x) => typeLookup(x, metaMap)
       case Not(expr) =>
         val e = typeLookup(expr, metaMap)
         if (e != SimpleType("bool")) throw new Error(s"Argument of NOT must be boolean")
@@ -84,6 +85,7 @@ object CodeGenUtils {
         case Mult(left, right)    => "("  + trans(left) + " * "  + trans(right) + ")"
         case Div(left, right)     => "("  + trans(left) + " / "  + trans(right) + ")"
         case Mod(left, right)     => "("  + trans(left) + " % "  + trans(right) + ")"
+        case UnaryMinus(value)    => "-(" + trans(value) + ")"
         case And(left, right)     => "("  + trans(left) + " && " + trans(right) + ")"
         case Or(left, right)      => "("  + trans(left) + " || " + trans(right) + ")"
         case Not(value)           => "!(" + trans(value) + ")"

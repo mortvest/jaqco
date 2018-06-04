@@ -6,7 +6,7 @@ object OperatorGenerator {
         expr match {
           case DerefExp(al, _) => (al == tableAlias)
           case x:BinOp  => checkExpr(x.left) && checkExpr(x.right)
-          case Not(x) => checkExpr(x)
+          case x:UnaryOp => checkExpr(x)
           case _ => true
         }
       }

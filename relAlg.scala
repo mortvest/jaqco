@@ -6,6 +6,9 @@ abstract class BinOp extends Expr {
   def left: Expr
   def right: Expr
 }
+abstract class UnaryOp extends Expr {
+  def value: Expr
+}
 abstract class RangeOp extends BinOp
 case class DerefExp(alias: String, columnName: String) extends Expr
 case class Attribute(attName: String) extends Expr
@@ -20,9 +23,10 @@ case class Minus(left: Expr, right: Expr) extends BinOp
 case class Mult(left: Expr, right: Expr) extends BinOp
 case class Div(left: Expr, right: Expr) extends BinOp
 case class Mod(left: Expr, right: Expr) extends BinOp
+case class UnaryMinus(value: Expr) extends UnaryOp
 case class And(left: Expr, right: Expr) extends BinOp
 case class Or(left: Expr, right: Expr) extends BinOp
-case class Not(value: Expr) extends Expr
+case class Not(value: Expr) extends UnaryOp
 case class Const(value: String, varType: DataType) extends Expr
 // TODO: Add types floats, dates etc
 
@@ -90,8 +94,7 @@ object LogicalPlanGenerator{
       case ex: ComparisonExpression =>
         val left = parseExp(ex.getLeft)
         val right = parseExp(ex.getRight)
-        val compType = ex.getType.getValue
-        compType match {
+        ex.getType.getValue match {
           case "<" => Less(left, right)
           case "<=" => Leq(left, right)
           case ">" => Greater(left, right)
@@ -112,11 +115,16 @@ object LogicalPlanGenerator{
           // TODO: moar ops
           case _ => throw new Error(s"Operator ${compType} is not supported")
         }
+      case ex: ArithmeticUnaryExpression =>
+        val value = parseExp(ex.getValue)
+        ex.getSign.toString match {
+          case "PLUS" => value
+          case "MINUS" => UnaryMinus(value)
+        }
       case ex: LogicalBinaryExpression =>
         val left = parseExp(ex.getLeft)
         val right = parseExp(ex.getRight)
-        val compType = ex.getType.toString
-        compType match {
+        ex.getType.toString match {
           case "AND" => And(left, right)
           case "OR" => Or(left, right)
         }
