@@ -1,3 +1,4 @@
+import Utils._
 object OperatorGenerator {
   def translateCond(cond: Expr, meta: TableMetaData, tableAlias: String): (Physical, Option[Expr]) = {
     def findPushCond(cond: List[Expr]): (List[Expr], List[Expr]) = {
@@ -17,15 +18,6 @@ object OperatorGenerator {
           val (lst1, lst2) = findPushCond(xs)
           (lst1, x::lst2)
         case Nil => (Nil, Nil)
-      }
-    }
-    def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
-      expr match {
-        case x: BinOp => isConstExpr(x.left, meta) && isConstExpr(x.right, meta)
-        case _ @ (_: Const | _: OutsideVar) => true
-        // case x: Const => true
-        // case x: OutsideVar => true
-        case _ => false
       }
     }
     def getRefs(expr: Expr, meta: TableMetaData): (Map[String, List[Expr]], List[Expr]) = {

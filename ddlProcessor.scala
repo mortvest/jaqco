@@ -76,7 +76,6 @@ ${map.foldLeft("") ((acc, x) => acc + singleAttrib(x._1, x._2))}
 """
     }
     def decode(map: Map[String, DataType]) = {
-      println(map)
       def singleAttrib(attName: String, typeName: DataType) = typeName match {
         case SimpleType(simple) => s"""
   std::memcpy(&${attName}, encoded_object.c_str() + offset, sizeof(decltype(${attName})));
@@ -103,10 +102,10 @@ ${map.foldLeft("")((acc, x) => acc + singleAttrib(x._1, x._2))}
       val header = s"struct ${valType} {\n"
       val fields = newMap.foldLeft("") ((acc, x) => acc + "  " + structElem(x, " { 0 }") + "\n")
       val defConstr = s"  ${valType}() = default;\n"
-      val altConstr = s"  ${valType}(" + names.foldLeft("")((acc, x) =>
-        acc + s"decltype($x) my_${x}, ").dropRight(2) + ") : " + names.foldLeft("")((acc, x) =>
-        acc + s"$x(my_$x), ").dropRight(2) + " {}\n"
-      header + fields + "\n" + defConstr + altConstr + encode(newMap) + decode(newMap) + "};"
+      // val altConstr = s"  ${valType}(" + names.foldLeft("")((acc, x) =>
+      //   acc + s"decltype($x) my_${x}, ").dropRight(2) + ") : " + names.foldLeft("")((acc, x) =>
+      //   acc + s"$x(my_$x), ").dropRight(2) + " {}\n"
+      header + fields + "\n" + defConstr + encode(newMap) + decode(newMap) + "};"
     }
     def proc(meta: TableMetaData) = {
       val attributes = meta.attributes

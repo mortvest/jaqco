@@ -92,24 +92,25 @@ object Main{
     val (scheCrea, typeDef) =
       DDLProcessor(meta, s"${filePostfix}_schema_creator.h",
         s"${filePostfix}_type_definition.h", namespace)
-    println(typeDef)
+    val codeList = processCodeFiles(codeFiles, meta)
     createFile(outDir, s"${filePostfix}_schema_creator.h", scheCrea)
     createFile(outDir, s"${filePostfix}_type_definition.h", typeDef)
-    processCodeFiles(codeFiles, meta, outDir)
+    codeList.foreach { case x =>
+      createFile(outDir, findFileName(x._1, codeExt) + hostLangExt, x._2)
+    }
   }
-  def processCodeFiles(fileList: List[String], meta: Map[String, TableMetaData], outDir: String) = {
-    // println(fileList)
+  def processCodeFiles(fileList: List[String], meta: Map[String, TableMetaData]):
+      List[(String, String)] = {
     var queryCounter = 0
     def processCodeFile(fileName: String, meta: Map[String, TableMetaData], ref: SimpleRef) = {
       val ref = SimpleRef(queryCounter, (queryCounter = _))
       val fileCode = File(fileName).contentAsString
       processFile(fileCode, ref, meta)
     }
-    fileList.foreach { case x =>
+    fileList.map { case x =>
       val ref = SimpleRef(queryCounter, (queryCounter = _))
-      val fileContents = (processCodeFile(x, meta, ref))
-      createFile(outDir, findFileName(x, codeExt) + hostLangExt, fileContents)
-    }
+      (x, processCodeFile(x, meta, ref))
+    }.toList
   }
   def checkExt(fileName: String, ext: String) = {
     val pattern = s".+${ext}".r

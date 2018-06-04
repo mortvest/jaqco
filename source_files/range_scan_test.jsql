@@ -12,7 +12,12 @@ interpreter_t insert_test::map(const jaqco_type& customer_name) {
 void insert_test::run() {
   <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (250, 'Foma', 874) <*q>
   <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (40000, 'David', 324) <*q>
-  <q*account> SELECT * FROM test_relation WHERE account_id <= 250 <*q>
+  <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (30000, 'David', 324) <*q>
+  <q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES (2000, 'David', 324) <*q>
+  long account_id = 30000;
+  <q*account> SELECT * FROM test_relation WHERE account_id <= LONG_VAR_account_id AND user_name = 'David'<*q>
   std::cout << query8_0_test_relation[0].test_relation_account_id << "\n";
+  std::cout << query8_0_test_relation[1].test_relation_account_id << "\n";
+  std::cout << query8_0_test_relation[2].test_relation_account_id << "\n";
   set_result(1);
 }

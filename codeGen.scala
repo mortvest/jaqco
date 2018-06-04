@@ -191,7 +191,7 @@ if ($index->get(utility::encode_safe($keyStruct), ${valueString})) {
 // filter
 std::vector<${listType}> ${newListName};
 for (const auto &${iterator} : ${oldListName}) {
-  if (${condTrans(expr, Map("" -> meta), iterator)}) {
+  if (${condTrans(expr, Map("" -> RelationMetaData(meta.attributes, "", "")), iterator)}) {
     ${newListName}.push_back(${iterator});
   }
 }

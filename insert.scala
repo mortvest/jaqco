@@ -53,26 +53,36 @@ object InsertStatement {
     }
     taggify(codeGen(zipped.toMap, meta, queryNum), query)
   }
+
+  // def condTrans(expr: Expr, meta: Map[String, RelationMetaData], postFix: String): String = {
+  // def typeLookup(expr: Expr, metaMap: Map[String, RelationMetaData]): DataType = {
+  // def genAssign(ty: DataType, name: String, value: String, new_struct: String) = {
   def codeGen(map: Map[String, Expr], meta: TableMetaData, qNum: Int) = {
-    println(meta.indexParts)
-    def keyInit(lst: List[String]): String = {
-      lst match {
-        case x::xs =>
-          condTrans((map get x).get, Map("" -> RelationMetaData(Map(), "","")), "") + ", " + keyInit(xs)
-        case Nil => ""
-      }
+    def copyVal(columnName: String, expr: Expr, structName: String): String = {
+      val dummyMap = Map("" -> RelationMetaData(meta.attributes, "",""))
+      val valType = typeLookup(expr, dummyMap)
+      val value = condTrans(expr, dummyMap, "")
+      genAssign(valType, columnName, value, structName)
     }
+    val checkExpr = (ex: Expr) =>
+    if (isConstExpr(ex, meta))
+      ex
+    else
+      throw new Error(s"Invalid expresion inside INSERT statement")
+    val keyMap = map.filter { case x => meta.indexParts.contains(x._1) }
     val queryTag = s"query${qNum}"
     val indexName = s"${queryTag}_index"
     val keyName = s"${queryTag}_key"
     val keyType = s"${meta.relName}_key_type"
     val valName = s"${queryTag}_val"
     val valType = s"${meta.relName}_val_type"
-    val valInit = map.foldLeft("") ( (acc, x) =>
-      acc + condTrans(x._2, Map("" -> RelationMetaData(Map(), "","")), "") + ", ")
+    val copyFun = (stName: String, map: Map[String, Expr]) =>
+    map.foldLeft("")((acc, x) => acc + copyVal(x._1, x._2, stName) + "\n")
     s"""auto ${indexName} = get_index("${meta.relName}");
-${keyType} ${keyName} {${keyInit(meta.indexParts.map{ case x => x._1 }.toList).dropRight(2)}};
-${valType} ${valName} {${valInit.dropRight(2)}};
+${keyType} ${keyName} {};
+${copyFun(keyName, keyMap)}
+${valType} ${valName} {};
+${copyFun(valName, map)}
 ${indexName}->insert(utility::encode_safe(${keyName}),
 utility::encode_safe(${valName}));"""
   }

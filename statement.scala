@@ -9,8 +9,7 @@ object StatementProcessor {
       case q: Query => retName match {
         case "" => throw new Error(s"SELECT statement needs an output variable")
         case retName =>
-          println("PHYSICAL QUERY PLAN:")
-          println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
+          // println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
           CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum, query)
       }
       case q: Insert => InsertStatement(q, meta, queryNum, query)

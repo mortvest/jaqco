@@ -79,15 +79,15 @@ object PhysicalPlanGenerator{
         // Add projection to the range scan
         val newOp = operation match {
           case RangeScan(m, f, t, a, _ , s) => RangeScan(m, f, t, a, aliasedProj, s)
-          case x => projList match {
-            case Nil => x
-            case y => OnePassProj(aliasedProj, x)
+          case x => newCond match {
+            case None => x
+            case Some(cond) => Filter(cond, x)
           }
         }
         // Add filter if needed
-        newCond match {
-          case None => newOp
-          case Some(x) => Filter(x, newOp)
+        projList match {
+          case Nil => newOp
+          case x => OnePassProj(aliasedProj, newOp)
         }
       case x:Cross =>
         val aliasMap = parseJoin(x)
