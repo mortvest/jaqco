@@ -17,6 +17,9 @@ case class Geq(left: Expr, right: Expr) extends RangeOp
 case class Equals(left: Expr, right: Expr) extends BinOp
 case class Plus(left: Expr, right: Expr) extends BinOp
 case class Minus(left: Expr, right: Expr) extends BinOp
+case class Mult(left: Expr, right: Expr) extends BinOp
+case class Div(left: Expr, right: Expr) extends BinOp
+case class Mod(left: Expr, right: Expr) extends BinOp
 case class And(left: Expr, right: Expr) extends BinOp
 case class Or(left: Expr, right: Expr) extends BinOp
 case class Not(value: Expr) extends Expr
@@ -102,8 +105,12 @@ object LogicalPlanGenerator{
         val compType = ex.getType.getValue
         compType match {
           case "+" => Plus(left, right)
+          case "-" => Minus(left, right)
+          case "*" => Mult(left, right)
+          case "/" => Div(left, right)
+          case "%" => Mod(left, right)
           // TODO: moar ops
-          case _ => Minus(left, right)
+          case _ => throw new Error(s"Operator ${compType} is not supported")
         }
       case ex: LogicalBinaryExpression =>
         val left = parseExp(ex.getLeft)
