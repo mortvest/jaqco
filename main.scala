@@ -44,7 +44,7 @@ object Main{
     val outDir = (conf.outDir.toOption, conf.folder.toOption) match {
       case (Some(dir), _) => dir
       case (None, Some(dir)) => s"$dir/$defaultDir"
-      case _ => s"$defaultDir"
+      case _ => s"./$defaultDir"
     }
     val forceClean = getToggleOption(conf.forceClean)
     val debug = getToggleOption(conf.debug)

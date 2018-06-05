@@ -1,9 +1,13 @@
 import Utils._
 
 object Preprocessor {
+  def removeComments(input: String) = {
+    val queryPattern = """/\*(.|\n)*?\*/|//.*""".r
+    queryPattern.replaceAllIn(input, "")
+  }
   def processDDL(input: String) = {
     val query = raw"<q\*>(.*?)<\*q>".r
-    query.findAllIn(input).map{case query(x) => x}.toList
+    query.findAllIn(removeComments(input)).map{case query(x) => x}.toList
   }
 
   def processFile(input: String, fileRef: SimpleRef, meta: Map[String, TableMetaData]): String = {
@@ -23,7 +27,7 @@ object Preprocessor {
     val queryPattern = """(?s)<q\*([A-Za-z0-9_]*)>(.*?)<\*q>""".r
     val variables = (for (m <- queryPattern.findAllMatchIn(input)) yield m.group(1)).toList
     checkDuplicates(variables, "Output variable")
-    val code = queryPattern.replaceAllIn(input, _ match {
+    val code = queryPattern.replaceAllIn(removeComments(input), _ match {
       case queryPattern(x,y) => choose(x, y)
       })
     fileRef.fun(counter)
