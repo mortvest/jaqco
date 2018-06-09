@@ -13,6 +13,7 @@ abstract class RangeOp extends BinOp
 case class DerefExp(alias: String, columnName: String) extends Expr
 case class Attribute(attName: String) extends Expr
 case class OutsideVar(name: String, varType: DataType) extends Expr
+// case class OutsideVar(name: String) extends Expr
 case class Less(left: Expr, right: Expr) extends RangeOp
 case class Leq(left: Expr, right: Expr) extends RangeOp
 case class Greater(left: Expr, right: Expr) extends RangeOp
@@ -33,6 +34,7 @@ case class Const(value: String, varType: DataType) extends Expr
 sealed trait DataType
 case class SimpleType(typeName: String) extends DataType
 case class StringType(size: Int) extends DataType
+case class NoType() extends DataType
 
 sealed trait RangeVal
 case class ConstVal(expr: Expr) extends RangeVal
@@ -51,7 +53,7 @@ import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 
 object LogicalPlanGenerator{
-  def apply(query: Query) = {
+  def apply(query: Query)= {
     val body = query.getQueryBody.asInstanceOf[QuerySpecification]
     val where = toScala(body.getWhere)
     val from = toScala(body.getFrom).get match {
@@ -74,15 +76,9 @@ object LogicalPlanGenerator{
     }
   }
   def findOutsideVar(name: String): Expr = {
-    val longPattern   = "LONG_VAR_([A-Za-z0-9_]+)".r
-    val intPattern    = "INT_VAR_([A-Za-z0-9_]+)".r
-    val charPattern   = "CHAR_VAR_([A-Za-z0-9_]+)".r
-    val stringPattern = "CHAR([0-9][1-9]*)_VAR_([A-Za-z0-9_]+)".r
+    val outsidePattern = "_(.+)".r
     name match {
-      case longPattern(name) => OutsideVar(name, SimpleType("std::int64_t"))
-      case intPattern(name) => OutsideVar(name, SimpleType("std::int32_t"))
-      case charPattern(name) => OutsideVar(name, SimpleType("char"))
-      case stringPattern(size, name) => OutsideVar(name, StringType(size.toInt))
+      case outsidePattern(varName) => OutsideVar(varName, NoType())
       case name => Attribute(name)
     }
   }

@@ -38,20 +38,26 @@ object InsertStatement {
       case x => meta.attributes get x._1 match {
         case None => throw new Error(s"Column ${x._1} does not exist")
         case Some(colType) =>
-          val exprType = typeLookup(x._2, metaMap.map {
+          val filledExpr = findForeignTypes(x._2, metaMap, colType)
+          val retVal = (x._1, filledExpr)
+          val exprType = typeLookup(filledExpr, metaMap.map {
+          // val exprType = typeLookup(x._2, metaMap.map {
             case x => (x._1 -> RelationMetaData(x._2.attributes, "", ""))
             }
           )
+          // println(s"Type Wanted: $colType, got: $exprType")
           (colType, exprType) match {
-          case (SimpleType(colType), SimpleType(valType)) if colType == valType => x
+          case (SimpleType(colType), SimpleType(valType)) if colType == valType => retVal
           case (StringType(colSize), StringType(valSize)) =>
-            if (colSize > valSize) x
-            else throw new Error(s"Value is too long for type CHAR(${colSize})")
+              // println(s"Size Wanted: $colSize, got: $valSize")
+              if (colSize >= valSize) retVal
+              else throw new Error(s"Value is too long for type CHAR(${colSize})")
           case _ => throw new Error(s"""Value type does not match type of column "${x._1}"""")
         }
       }
     }
     val insertOp = Insertion(zipped.toMap, meta)
+    println(zipped)
     taggify(codeGen(insertOp, queryNum), query)
   }
 

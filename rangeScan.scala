@@ -27,6 +27,7 @@ object RangeScanGen {
           case StringType(len) =>
             val neu = if (name == "") fun(s"char_field", map) else fun(s"$name", map)
             List((neu._1, StringType(len), value, "char", s"${neu._1}[${len}]")) ::: rec(lst, neu._2)
+          case NoType() => throw new Error(s"Variable $name has no type")
         }
       }
       lst match {
@@ -51,7 +52,7 @@ object RangeScanGen {
     def findForeignVars(expr: Expr): List[(String, DataType)] = {
       expr match {
         case x: BinOp => findForeignVars(x.left) ::: findForeignVars(x.right)
-        case Not(x) => findForeignVars(x)
+        case x: UnaryOp => findForeignVars(x.value)
         case OutsideVar(name, varType) => List((name, varType))
         case _ => Nil
       }
@@ -60,6 +61,7 @@ object RangeScanGen {
       dataType match {
         case SimpleType(x) => s"$x $name;"
         case StringType(x) => s"char ${name}[$x];"
+        case NoType() => throw new Error(s"Variable $name has no type")
       }
     }
     def varCpy(name: String, dataType: DataType) = {
@@ -67,6 +69,7 @@ object RangeScanGen {
       dataType match {
         case SimpleType(_) => s"$dest = ${name};"
         case StringType(_) => s"std::strcpy($dest, ${name});"
+        case NoType() => throw new Error(s"Variable $name has no type")
       }
     }
     val foreignVars = findForeignVars(expr)
@@ -129,6 +132,7 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, ne
           case MaxVal() =>
             s"std::fill_n($curName, $len, std::numeric_limits<unsigned char>::max());"
         }
+        case NoType() => throw new Error("Shared variable has no type")
       }
     }
     val relName = s"${meta.relName}"

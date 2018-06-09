@@ -16,6 +16,7 @@ case class NestedLoopJoin(tables: List[Physical], joinCond: Option[Expr]) extend
 case class Filter(cond: Expr, source: Physical) extends Physical
 
 import OperatorGenerator._
+import Utils._
 
 object PhysicalPlanGenerator{
   def apply(tree: RelAlg, meta: Map[String, TableMetaData]) = {
@@ -45,6 +46,9 @@ object PhysicalPlanGenerator{
           ), None)
       }
     }
+    // def findForeignTypes(): Expr = {
+
+    // }
     def genQList(whereCond: Option[Expr], aliasLst: List[(String, String)]):
         (List[Physical], Option[Expr]) = {
       aliasLst match {
@@ -60,7 +64,8 @@ object PhysicalPlanGenerator{
       case x => (Nil, x)
     }
     val (whereCond, from) = selection match {
-      case Selection(cond, x) => (Some(cond), x)
+      // case Selection(cond, x) => (Some(cond), x)
+      case Selection(cond, x) => (Some(findForeignTypes(cond, meta, SimpleType("bool"))), x)
       case x => (None, x)
     }
     from match {
@@ -142,7 +147,7 @@ object PhysicalPlanGenerator{
       case Some(x) => x
     }
   }
-  // // TODO: Add check if column acutally exists
+  //TODO: Ugly, implement with lenses
   def giveAlias(expr: Expr, alias: String, fun: ((String, String) => String)): Expr = {
     expr match {
       case DerefExp(newAlias, name) => DerefExp(newAlias, fun(newAlias, name))
@@ -164,6 +169,7 @@ object PhysicalPlanGenerator{
       case x => x
     }
   }
+  //TODO: Ugly, implement with lenses
   def joinAlias(expr: Expr, fun: (String => String), fun1: ((String,String) => String)): Expr = {
     expr match {
       case DerefExp(alias, attName) => DerefExp(alias, (fun1(alias,attName)))

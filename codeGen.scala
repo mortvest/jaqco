@@ -34,7 +34,6 @@ object CodeGeneration {
           (x._1 + y._1, y._2)
       }
     }
-    val nameTags = scala.collection.mutable.Set
     genCode(physical, RelationMetaData(Map(), "", "")) match {
       case (code, relMap) =>
         taggify(code + s"auto $varName = ${relMap.name};", originalQuery)
@@ -51,6 +50,7 @@ object CodeGeneration {
       valType match {
         case SimpleType(tp) => s"$tp $name"
         case StringType(len) => s"char $name[$len]"
+        case NoType() => throw new Error(s"Variable $name has no type")
       }
     }
     val joinName = "query0_2_join"
@@ -74,6 +74,7 @@ object CodeGeneration {
       dataType match {
         case SimpleType(_) => s"$dest = $from.$name"
         case StringType(_) => s"std::strcpy($dest, $from.$name)"
+        case NoType() => throw new Error(s"Variable $name has no type")
       }
     }
     val varCpy = s"""    ${joinType} ${joinName}_i {};
@@ -113,6 +114,7 @@ ${loop(joinCond(varCpy))}
             case StringType(len) =>
               val neu = if (name == "") fun(s"char_field", map) else fun(s"$name", map)
               List((neu._1, StringType(len), value, "char", s"${neu._1}[${len}]")) ::: rec(lst, neu._2)
+            case NoType() => throw new Error(s"Variable $name has no type")
           }
         }
         lst match {
@@ -152,6 +154,7 @@ ${mainList.foldLeft("") ((acc, x) => acc + "  " + genAssign(x._2, x._1, x._3, it
         (meta.indexParts get name).get match {
           case SimpleType(_) => s"${dest} = ${value};"
           case StringType(_) => s"std::strcpy($dest, ${value});"
+          case NoType() => throw new Error(s"Variable $name has no type")
         }
     }
     val relName  = s"${meta.relName}"

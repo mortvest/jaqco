@@ -10,7 +10,13 @@ object StatementProcessor {
         case "" => throw new Error(s"SELECT statement needs an output variable")
         case retName =>
           // println(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta))
-          CodeGeneration(PhysicalPlanGenerator(LogicalPlanGenerator(q), meta), retName, queryNum, query)
+          CodeGeneration(
+            PhysicalPlanGenerator(
+              LogicalPlanGenerator(q),
+              meta),
+            retName,
+            queryNum,
+            query)
       }
       case q: Insert => InsertStatement(q, meta, queryNum, query)
       case _ => throw new Error(s"Statement is not supported")
