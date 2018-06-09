@@ -7,7 +7,7 @@ import CodeGenUtils._
 import PhysicalPlanGenerator._
 import Utils._
 
-case class Insertion(tableName: String, map: Map[String, Const])
+case class Insertion(map: Map[String, Expr], meta: TableMetaData)
 
 object InsertStatement {
   def apply(dmlTree: Insert, metaMap: Map[String, TableMetaData], queryNum: Int, query: String): String = {
@@ -51,38 +51,40 @@ object InsertStatement {
         }
       }
     }
-    taggify(codeGen(zipped.toMap, meta, queryNum), query)
+    val insertOp = Insertion(zipped.toMap, meta)
+    taggify(codeGen(insertOp, queryNum), query)
   }
 
   // def condTrans(expr: Expr, meta: Map[String, RelationMetaData], postFix: String): String = {
   // def typeLookup(expr: Expr, metaMap: Map[String, RelationMetaData]): DataType = {
   // def genAssign(ty: DataType, name: String, value: String, new_struct: String) = {
-  def codeGen(map: Map[String, Expr], meta: TableMetaData, qNum: Int) = {
+  // def codeGen(map: Map[String, Expr], meta: TableMetaData, qNum: Int) = {
+  def codeGen(op: Insertion, qNum: Int) = {
     def copyVal(columnName: String, expr: Expr, structName: String): String = {
-      val dummyMap = Map("" -> RelationMetaData(meta.attributes, "",""))
+      val dummyMap = Map("" -> RelationMetaData(op.meta.attributes, "",""))
       val valType = typeLookup(expr, dummyMap)
       val value = condTrans(expr, dummyMap, "")
       genAssign(valType, columnName, value, structName)
     }
     val checkExpr = (ex: Expr) =>
-    if (isConstExpr(ex, meta))
+    if (isConstExpr(ex, op.meta))
       ex
     else
       throw new Error(s"Invalid expresion inside INSERT statement")
-    val keyMap = map.filter { case x => meta.indexParts.contains(x._1) }
+    val keyMap = op.map.filter { case x => op.meta.indexParts.contains(x._1) }
     val queryTag = s"query${qNum}"
     val indexName = s"${queryTag}_index"
     val keyName = s"${queryTag}_key"
-    val keyType = s"${meta.relName}_key_type"
+    val keyType = s"${op.meta.relName}_key_type"
     val valName = s"${queryTag}_val"
-    val valType = s"${meta.relName}_val_type"
+    val valType = s"${op.meta.relName}_val_type"
     val copyFun = (stName: String, map: Map[String, Expr]) =>
     map.foldLeft("")((acc, x) => acc + copyVal(x._1, x._2, stName) + "\n")
-    s"""auto ${indexName} = get_index("${meta.relName}");
+    s"""auto ${indexName} = get_index("${op.meta.relName}");
 ${keyType} ${keyName} {};
 ${copyFun(keyName, keyMap)}
 ${valType} ${valName} {};
-${copyFun(valName, map)}
+${copyFun(valName, op.map)}
 ${indexName}->insert(utility::encode_safe(${keyName}),
 utility::encode_safe(${valName}));"""
   }

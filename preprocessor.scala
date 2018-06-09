@@ -6,7 +6,8 @@ object Preprocessor {
     queryPattern.replaceAllIn(input, "")
   }
   def processDDL(input: String) = {
-    val query = raw"<q\*>(.*?)<\*q>".r
+    // val query = raw"<q\*>(.*?)<\*q>".r
+    val query = """(?s)(CREATE TABLE.*?);""".r
     query.findAllIn(removeComments(input)).map{case query(x) => x}.toList
   }
 
