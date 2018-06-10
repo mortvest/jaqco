@@ -42,11 +42,13 @@ object MetaGenerator {
         case fullPattern(part) =>
             singlePattern.findAllIn(part).toList.map{ case x =>
               (x -> findAttName(x, attributes)) }.toList
-        case _ => throw new Error(s"Key pattern ${content} is unrecognizable")
+        // case _ => throw new Error(s"Key pattern ${content} is unrecognizable")
+        case _ => Nil
       }
     }
     keyParts match {
-      case Nil => throw new Error(s"No key given in the table: $name")
+      // case Nil => throw new Error(s"No key given in the table: $name")
+      case Nil => (name, TableMetaData(name, attributes, attributes))
       case x => (name, TableMetaData(name, x.toMap, attributes))
     }
   }
