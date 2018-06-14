@@ -18,7 +18,7 @@ object StatementProcessor {
             queryNum,
             query)
       }
-      case q: Insert => InsertStatement(q, meta, queryNum, query)
+      case q: Insert => DMLProcessor(q, meta, queryNum, query)
       case _ => throw new Error(s"Statement is not supported")
     }
   }

@@ -7,9 +7,12 @@ object MetaGenerator {
   def translateType(sqlType: String) = {
     val stringPattern = "CHAR\\(([1-9][0-9]*)\\)".r
     sqlType match {
+      case "INTEGER" => SimpleType("std::int32_t")
       case "INT" => SimpleType("std::int32_t")
-      case "LONG" => SimpleType("std::int64_t")
+      case "BIGINT" => SimpleType("std::int64_t")
       case "BOOL" => SimpleType("bool")
+      case "FLOAT" => SimpleType("float")
+      case "DOUBLE" => SimpleType("double")
       case stringPattern(size) => StringType(size.toInt)
       case _ => throw new Error(s"Type ${sqlType} is not supported (yet)")
     }

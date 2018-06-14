@@ -40,25 +40,27 @@ ${metaMap.foldLeft("")( (acc, x) => acc + "        " + genIndex(x._1, x._1 + "_k
   def genTypeDef(metaMap: Map[String, TableMetaData], namespace: String): String = {
     def swap(attName: String, attType: SimpleType) = {
       attType.typeName match {
-          case "std::int32_t" => s"__builtin_bswap32($attName)"
-          case "std::int64_t" => s"__builtin_bswap64($attName)"
-          case _ => throw new Error(s"Not supported yet")
-        }
+        case "std::int32_t" => s"__builtin_bswap32($attName)"
+        case "std::int64_t" => s"__builtin_bswap64($attName)"
+        case "float" => s"__builtin_bswap32($attName)"
+        case "double" => s"__builtin_bswap64($attName)"
+        case _ => throw new Error(s"Not supported yet")
+      }
     }
     def encode(map: Map[String, DataType]) = {
       val buffSize = "auto sizeof_buf = " + map.keys.toList.foldLeft("")((acc, x) =>
         acc + s"sizeof(decltype($x)) + ").dropRight(3) + ";"
       def singleAttrib(attName: String, typeName: DataType) = typeName match {
-        case simple: SimpleType => s"""
+        case SimpleType(dType) if dType != "BOOL" => s"""
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  decltype(${attName}) swap_${attName} = ${swap(attName, simple)};
+  decltype(${attName}) swap_${attName} = ${swap(attName, SimpleType(dType))};
   std::memcpy(&buf[offset], &swap_${attName}, sizeof(decltype(${attName})));
 #else
   std::memcpy(&buf[offset], &(${attName}), sizeof(decltype(${attName})));
 #endif
   offset += sizeof(decltype(${attName}));
 """
-        case StringType(len) => s"""
+        case _ => s"""
   std::memcpy(&buf[offset], &(${attName}), sizeof(decltype(${attName})));
   offset += sizeof(decltype(${attName}));
 """
@@ -76,14 +78,14 @@ ${map.foldLeft("") ((acc, x) => acc + singleAttrib(x._1, x._2))}
     }
     def decode(map: Map[String, DataType]) = {
       def singleAttrib(attName: String, typeName: DataType) = typeName match {
-        case SimpleType(simple) => s"""
+        case SimpleType(dType) if dType != "BOOL" => s"""
   std::memcpy(&${attName}, encoded_object.c_str() + offset, sizeof(decltype(${attName})));
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   ${attName} = __builtin_bswap32(${attName});
 #endif
   offset += sizeof(decltype(${attName}));
 """
-        case StringType(len) => s"""
+        case _ => s"""
 std::memcpy(&${attName}, encoded_object.c_str() + offset, sizeof(decltype(${attName})));
 offset += sizeof(decltype(${attName}));
 """

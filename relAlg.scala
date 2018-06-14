@@ -127,6 +127,8 @@ object LogicalPlanGenerator{
       case x: NotExpression => Not(parseExp(x.getValue))
       case x: Identifier => findOutsideVar(x.getValue.toString)
       case x: LongLiteral => Const(x.getValue.toString, SimpleType("std::int64_t"))
+      case x: DecimalLiteral => Const(x.getValue.toString, SimpleType("double"))
+      case x: BooleanLiteral => Const(x.getValue.toString, SimpleType("bool"))
       case x: StringLiteral =>
         val str = x.getValue.toString
         Const(str, StringType(str.size))

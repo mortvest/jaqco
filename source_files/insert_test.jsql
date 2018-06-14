@@ -10,28 +10,19 @@ interpreter_t insert_test::map(const jaqco_type& customer_name) {
 }
 
 void insert_test::run() {
-  struct test_relation_key_type {
-    long account_id;
-  }MACRO_PACKED;
+  // struct test_relation_key_type {
+  //   long account_id;
+  // }MACRO_PACKED;
 
-  struct test_relation_val_type {
-    long account_id;
-    char user_name[255];
-    long balance;
-  }MACRO_PACKED;
+  // struct test_relation_val_type {
+  //   long account_id;
+  //   char user_name[255];
+  //   long balance;
+  // }MACRO_PACKED;
   auto tommy_name = "Tommy";
   auto variable = 3;
-/*
-<q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES(1, 'Bobby', 1000) <*q>
-<q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES(2, 'Billy', 1500) <*q>
-*/
-<q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES(3, _tommy_name, 2000) <*q>
+<q*> INSERT INTO test_relation (account_id, user_name, balance) VALUES(3, _tommy_name, DECIMAL '2000.1' ) <*q>
 <q*tommy_balance> SELECT balance FROM test_relation WHERE account_id = _variable <*q>
-/*
-<q*tommy_balance> SELECT balance FROM test_relation WHERE account_id = 3 <*q>
-*/
-  // std::cout<<"Bobby's ID: " << bobby_balance[0].test_relation_balance << "\n";
-  // std::cout<<"Billy's ID: " << billy_balance[0].test_relation_balance << "\n";
   std::cout<<"Tommy's ID: " << tommy_balance[0].test_relation_balance << "\n";
   set_result(1);
 }
