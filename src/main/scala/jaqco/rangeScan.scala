@@ -1,3 +1,4 @@
+package jaqco
 import CodeGenUtils._
 
 object RangeScanGen {

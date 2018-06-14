@@ -1,3 +1,4 @@
+package jaqco
 case class RelationMetaData(attributes: Map[String, DataType], name: String, typeName: String)
 //hack to introduce call by reference
 case class Ref(relNum: Int, counter: Int, fun: (Int => Unit))

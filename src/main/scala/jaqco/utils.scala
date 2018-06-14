@@ -1,3 +1,5 @@
+package jaqco
+case class SimpleRef(counter: Int, fun: (Int => Unit))
 object Utils {
   def isConstExpr (expr: Expr, meta: TableMetaData): Boolean = {
     expr match {

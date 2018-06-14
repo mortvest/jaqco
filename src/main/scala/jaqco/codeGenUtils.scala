@@ -1,3 +1,4 @@
+package jaqco
 object CodeGenUtils {
   def typeLookup(expr: Expr, metaMap: Map[String, RelationMetaData]): DataType = {
     def checkBin(left: Expr, right: Expr) = {

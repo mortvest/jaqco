@@ -1,3 +1,4 @@
+package jaqco
 import Utils._
 object OperatorGenerator {
   def translateCond(cond: Expr, meta: TableMetaData, tableAlias: String): (Physical, Option[Expr]) = {

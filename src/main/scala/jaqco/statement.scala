@@ -1,3 +1,4 @@
+package jaqco
 import com.facebook.presto.sql.parser._
 import com.facebook.presto.sql.tree._
 

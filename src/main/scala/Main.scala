@@ -1,3 +1,4 @@
+import jaqco._
 import org.rogach.scallop._
 import better.files._
 import better.files.Dsl._
@@ -7,9 +8,8 @@ import scala.io.Source
 import com.facebook.presto.sql.parser._
 import com.facebook.presto.sql.tree._
 
-import Preprocessor._
-import Utils._
-case class SimpleRef(counter: Int, fun: (Int => Unit))
+import jaqco.Preprocessor._
+import jaqco.Utils._
 
 // Setting up command line arguments
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {

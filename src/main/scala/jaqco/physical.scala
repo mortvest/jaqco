@@ -1,3 +1,4 @@
+package jaqco
 case class TableMetaData(relName: String, indexParts: Map[String, DataType], attributes: Map[String, DataType])
 
 sealed trait Physical

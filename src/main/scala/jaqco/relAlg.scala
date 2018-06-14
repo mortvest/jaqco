@@ -1,3 +1,4 @@
+package jaqco
 final case class Error(private val message: String = "",
   private val cause: Throwable = None.orNull) extends Exception(message, cause)
 
@@ -53,9 +54,12 @@ import scala.compat.java8.OptionConverters._
 import scala.collection.JavaConverters._
 
 object LogicalPlanGenerator{
-  def apply(query: Query)= {
+  def apply(query: Query) = {
     val body = query.getQueryBody.asInstanceOf[QuerySpecification]
     val where = toScala(body.getWhere)
+    checkClause(toScala(body.getGroupBy))
+    checkClause(toScala(body.getHaving))
+    checkClause(toScala(body.getOrderBy))
     val from = toScala(body.getFrom).get match {
       case x: Join => x.getType.toString match {
         case "IMPLICIT" => parseJoin(x)
@@ -73,6 +77,12 @@ object LogicalPlanGenerator{
       case List(c: AllColumns) => whereCond
       case c =>
         Projection(c.map({case x => parseExp(x.asInstanceOf[SingleColumn].getExpression)}),whereCond)
+    }
+  }
+  def checkClause(opt: Option[Node]) = {
+    opt match {
+      case Some(_) => throw new Error(s"$opt clause is not supported")
+      case None => {}
     }
   }
   def findOutsideVar(name: String): Expr = {
