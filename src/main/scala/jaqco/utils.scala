@@ -106,9 +106,12 @@ object Utils {
             case None => throw new Error(s"Unknow refference to $name attribute")
             case Some(x) => (x.get, expr)
           }
-        case _ => throw new Error("Type inference failed")
+        case DerefExp(name, vType) => (SimpleType("std::int64_t"), expr)
+        case _ => throw new Error(s"Type inference failed $expr")
       }
     }
+    // println(meta)
+    // println(expr)
     proc(expr)._2
   }
 }

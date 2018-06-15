@@ -59,7 +59,7 @@ object DMLProcessor {
       }
     }
     val insertOp = Insertion(zipped.toMap, meta)
-    println(zipped)
+    // println(zipped)
     taggify(codeGen(insertOp, queryNum), query)
   }
 

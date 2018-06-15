@@ -9,5 +9,7 @@ itself and Scala to the version, necessary for the project and download all the 
 when the script "jaqco" from the root directory is ran for the first time.
 ## Usage
 ./jaqco -c <file1.jsql, file2.jsql ... > -d <file.ddl> -o <output_directory>
-## Show the help message:
+### Show the help message:
 ./jaqco --help
+### Run tests
+sbt test

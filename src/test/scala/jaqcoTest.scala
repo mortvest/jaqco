@@ -28,8 +28,8 @@ object TestCondition{
 }
 
 object TestPhysical{
-  def apply(input: RelAlg, result: Physical, meta: Map[String, TableMetaData]) = {
-    assert(PhysicalPlanGenerator(input, meta) == result)
+  def apply(input: RelAlg, meta: Map[String, TableMetaData]) = {
+    PhysicalPlanGenerator(input, meta)
   }
 }
 
@@ -75,13 +75,57 @@ class JaqcoTest extends FlatSpec with Matchers {
   /////////////////////////////////////////////
   "Physical Query Plan Generator" should
   "perform translation of logical query plan to a physical query plan" in {
-    assert(1 == 1)
+    val meta = Map[String, TableMetaData](
+      "test_relation" ->
+        TableMetaData("test_relation", Map("user_name" -> StringType(255)),
+          Map("user_name" -> StringType(255),
+            "account_id" -> SimpleType("std::int64_t"),
+            "balance" -> SimpleType("std::int64_t")
+          )
+        ),
+        "other_relation" ->
+        TableMetaData("other_relation", Map("account_id" -> SimpleType("std::int64_t")),
+          Map("account_id" -> SimpleType("std::int64_t"),
+            "value" -> SimpleType("std::int64_t")
+          )
+        )
+    )
+    val one = RangeScan(
+      TableMetaData(
+        "other_relation",
+        Map("account_id" -> SimpleType("std::int64_t")),
+        Map(
+          "other_relation_account_id" -> SimpleType("std::int64_t"),
+          "other_relation_value" -> SimpleType("std::int64_t")
+        )
+      ),
+      List((SimpleType("std::int64_t"),ZeroVal())),
+      List((SimpleType("std::int64_t"),MaxVal())),
+      "other_relation",
+      List(),
+      None)
+
+    assert(TestPhysical(Rel("other_relation", "other_relation"), meta) == one )
   }
-  it should "choose choose the appropriate physical operator based on schema and WHERE clause" in {
-    assert(1 == 1)
+  it should "fail on reference to an undefined columns" in {
+    val meta = Map[String, TableMetaData](
+      "test_relation" ->
+        TableMetaData("test_relation", Map("user_name" -> StringType(255)),
+          Map("user_name" -> StringType(255),
+            "account_id" -> SimpleType("std::int64_t"),
+            "balance" -> SimpleType("std::int64_t")
+          )
+        ),
+      "other_relation" ->
+        TableMetaData("other_relation", Map("account_id" -> SimpleType("std::int64_t")),
+          Map("account_id" -> SimpleType("std::int64_t"),
+            "value" -> SimpleType("std::int64_t")
+          )
+        )
+    )
+    assertThrows[Error] {
+      TestPhysical(Rel("A","A"), meta)
+    }
   }
-  "Code Generator" should
-  "generate code for a physical plan" in {
-    assert(1 == 1)
-  }
+
 }
